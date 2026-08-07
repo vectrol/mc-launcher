@@ -1,0 +1,258 @@
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Download, Loader2, ExternalLink, Sparkles, Package, Puzzle, Sun, Palette, Boxes, Star } from 'lucide-react';
+import { ModrinthMod, InstalledVersion } from '../types';
+
+type ResourceType = 'mod' | 'shader' | 'resourcepack' | 'modpack';
+
+interface Props {
+  installedList: InstalledVersion[];
+  t: (key: string, ...args: (string | number)[]) => string;
+}
+
+const TYPES: { id: ResourceType; label: string; icon: any }[] = [
+  { id: 'mod', label: '市场.mods', icon: Puzzle },
+  { id: 'shader', label: '市场.shaders', icon: Sun },
+  { id: 'resourcepack', label: '市场.rpacks', icon: Palette },
+  { id: 'modpack', label: '市场.modpacks', icon: Boxes },
+];
+
+export default function ModBrowser({ installedList, t }: Props) {
+  const [type, setType] = useState<ResourceType>('mod');
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<ModrinthMod[]>([]);
+  const [popular, setPopular] = useState<ModrinthMod[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedMod, setSelectedMod] = useState<ModrinthMod | null>(null);
+  const [modVersions, setModVersions] = useState<any[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [showInstall, setShowInstall] = useState(false);
+  const [targetVersion, setTargetVersion] = useState('');
+  const [installingMod, setInstallingMod] = useState(false);
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  useEffect(() => {
+    try { setFavorites(JSON.parse(localStorage.getItem('mc_favorites') || '[]')); } catch {}
+  }, []);
+
+  function toggleFavorite(slug: string) {
+    setFavorites(prev => {
+      const next = prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug];
+      localStorage.setItem('mc_favorites', JSON.stringify(next));
+      return next;
+    });
+  }
+
+  useEffect(() => { loadPopular(); }, [type]);
+
+  async function loadPopular() {
+    try {
+      setLoading(true); setError(null);
+      const data = await window.electronAPI.mc.getModrinthPopular(type);
+      setPopular(data.hits || []);
+    } catch { setError(t('common.loading')); }
+    finally { setLoading(false); }
+  }
+
+  async function handleSearch() {
+    if (!query.trim()) return loadPopular();
+    try {
+      setSearching(true); setError(null);
+      const data = await window.electronAPI.mc.searchModrinth(query, 0, type);
+      setResults(data.hits || []);
+    } catch { setError(t('common.loading')); }
+    finally { setSearching(false); }
+  }
+
+  function openModDetail(mod: ModrinthMod) {
+    setSelectedMod(mod);
+    setShowInstall(false);
+    setModVersions([]);
+    setTargetVersion('');
+  }
+
+  async function handleInstallVersion() {
+    if (!selectedMod || !targetVersion) return;
+    try {
+      setVersionsLoading(true);
+      const vers = await window.electronAPI.mc.getModrinthVersions(selectedMod.slug, targetVersion, type);
+      setModVersions(vers);
+      setShowInstall(true);
+    } catch {} finally { setVersionsLoading(false); }
+  }
+
+  async function doInstall(fileUrl: string, fileName: string, versionId?: string) {
+    if (!selectedMod || !targetVersion) return;
+    try {
+      setInstallingMod(true);
+      const destType = type === 'shader' ? 'shaders' : type === 'resourcepack' ? 'resourcepacks' : 'mods';
+      const result = await window.electronAPI.mc.downloadMod(targetVersion, fileUrl, fileName, destType);
+      if (result?.success) {
+        // Auto-install required dependencies for mods
+        if (type === 'mod' && versionId) {
+          const deps = await window.electronAPI.mc.getModDependencies(versionId);
+          for (const dep of deps) {
+            try {
+              const file = await window.electronAPI.mc.getModrinthVersionFile(dep.versionId);
+              if (file) await window.electronAPI.mc.downloadMod(targetVersion, file.url, file.name, 'mods');
+            } catch {}
+          }
+        }
+        setError(null); setShowInstall(false); setSelectedMod(null);
+      }
+      else { setError('Download failed'); }
+    } catch (e: any) { setError(e.message); }
+    finally { setInstallingMod(false); }
+  }
+
+  function formatNum(n: number) {
+    if (n > 1000000) return `${(n / 1000000).toFixed(1)}M`;
+    if (n > 1000) return `${(n / 1000).toFixed(1)}K`;
+    return n.toString();
+  }
+
+  const displayMods = query ? results : popular;
+  const currentTypeLabel = TYPES.find(x => x.id === type)?.label || '';
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header: category tabs + search */}
+      <div className="px-6 pt-4 pb-3 border-b border-mc-border shrink-0 space-y-3">
+        <div className="flex gap-1.5">
+          {TYPES.map((tp) => (
+            <motion.button key={tp.id} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={() => { setType(tp.id); setQuery(''); setResults([]); }}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium transition-all ${
+                type === tp.id ? 'bg-mc-accent/15 text-mc-accent-hover border border-mc-accent/30' : 'bg-mc-card/50 border border-mc-border/50 text-mc-muted hover:text-mc-text'
+              }`}>
+              <tp.icon size={13} /> {t(tp.label)}
+            </motion.button>
+          ))}
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-mc-muted" />
+            <input type="text" value={query} onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder={t('modBrowser.search')}
+              className="w-full bg-mc-card border border-mc-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-mc-text placeholder-mc-muted outline-none focus:border-mc-accent/50 transition-colors" />
+          </div>
+          <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={handleSearch} disabled={searching}
+            className="px-4 py-2.5 rounded-xl bg-mc-accent hover:bg-mc-accent-hover text-white text-sm font-medium transition-all disabled:opacity-50">
+            {searching ? <Loader2 size={14} className="animate-spin" /> : t('filter.search')}
+          </motion.button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6">
+        {selectedMod ? (
+          <div className="max-w-2xl mx-auto space-y-4">
+            <button onClick={() => setSelectedMod(null)} className="text-xs text-mc-muted hover:text-mc-text">← {t('nav.modBrowser')}</button>
+            <div className="flex gap-4">
+              <img src={selectedMod.icon} alt="" className="w-20 h-20 rounded-2xl bg-mc-card border border-mc-border" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold">{selectedMod.title}</h2>
+                <p className="text-xs text-mc-muted">{t('modBrowser.by')} {selectedMod.author} · {formatNum(selectedMod.downloads)} {t('modBrowser.downloads')} · {formatNum(selectedMod.follows)} {t('modBrowser.follows')}</p>
+                <p className="text-sm text-mc-muted mt-2 line-clamp-3">{selectedMod.description}</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl glass-strong border border-mc-border/50 space-y-3">
+              <p className="text-xs font-semibold">{t('mods.installTo')}</p>
+              {type === 'mod' && installedList.length === 0 ? (
+                <p className="text-xs text-mc-muted">{t('mods.noVersionForMod')}</p>
+              ) : (
+                <>
+                  {type !== 'modpack' ? (
+                    <>
+                      <div className="flex gap-2 flex-wrap">
+                        {installedList.map((v) => (
+                          <motion.button key={v.id} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                            onClick={() => setTargetVersion(v.id)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
+                              targetVersion === v.id ? 'bg-mc-accent/20 text-mc-accent-hover border border-mc-accent/30' : 'bg-mc-card/50 border border-mc-border text-mc-muted hover:border-mc-accent/30'
+                            }`}>{v.id}</motion.button>
+                        ))}
+                      </div>
+                      {targetVersion && (
+                        <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                          onClick={handleInstallVersion} disabled={versionsLoading}
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-mc-accent hover:bg-mc-accent-hover text-white text-sm font-medium transition-all disabled:opacity-50">
+                          {versionsLoading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                          {t('mods.versions')}
+                        </motion.button>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-mc-muted">{t('market.modpackHint')}</p>
+                  )}
+
+                  {showInstall && modVersions.length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-mc-border/50">
+                      {modVersions.map((v) => {
+                        const file = v.files.find((f: any) => f.primary) || v.files[0];
+                        return file ? (
+                          <div key={v.id} className="flex items-center justify-between p-2.5 rounded-xl bg-mc-card/30 border border-mc-border/30">
+                            <div>
+                              <p className="text-xs font-mono text-mc-text">{v.name}</p>
+                              <p className="text-[9px] text-mc-muted">{(v.loaders || []).join(', ')} · {Math.round(file.size / 1024)}KB</p>
+                            </div>
+                            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                              onClick={() => doInstall(file.url, file.name, v.id)} disabled={installingMod}
+                              className="px-3 py-1.5 rounded-lg bg-mc-green/20 text-mc-green hover:bg-mc-green/30 text-[10px] font-medium transition-all disabled:opacity-40">
+                              {installingMod ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
+                            </motion.button>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <a href={`https://modrinth.com/${type === 'mod' ? 'mod' : type === 'shader' ? 'shader' : type === 'resourcepack' ? 'resourcepack' : 'modpack'}/${selectedMod.slug}`} target="_blank"
+              className="flex items-center gap-1 text-xs text-mc-accent-hover hover:underline">
+              <ExternalLink size={11} /> View on Modrinth
+            </a>
+          </div>
+        ) : loading ? (
+          <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-mc-accent" /></div>
+        ) : (
+          <>
+            {!query && <h3 className="text-sm font-semibold mb-4">{t('modBrowser.popular')} · {t(currentTypeLabel)}</h3>}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {displayMods.map((mod) => (
+                <motion.div key={mod.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  onClick={() => openModDetail(mod)}
+                  className="p-4 rounded-2xl glass-strong border border-mc-border/50 hover:border-mc-accent/25 cursor-pointer transition-all group">
+                  <div className="flex gap-3">
+                    <img src={mod.icon} alt="" className="w-12 h-12 rounded-xl bg-mc-card shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-semibold text-mc-text truncate group-hover:text-mc-accent-hover transition-colors">{mod.title}</h4>
+                      <p className="text-[10px] text-mc-muted mt-0.5">{t('modBrowser.by')} {mod.author}</p>
+                      <p className="text-[10px] text-mc-muted line-clamp-2 mt-1">{mod.description}</p>
+                      <div className="flex items-center gap-3 mt-2 text-[9px] text-mc-muted">
+                        <span className="flex items-center gap-1"><Download size={9} />{formatNum(mod.downloads)}</span>
+                        <span className="flex items-center gap-1"><Sparkles size={9} />{formatNum(mod.follows)}</span>
+                        <button onClick={(e) => { e.stopPropagation(); toggleFavorite(mod.slug); }}
+                          className={`ml-auto p-1 rounded transition-colors ${favorites.includes(mod.slug) ? 'text-mc-orange' : 'text-mc-muted hover:text-mc-orange'}`}>
+                          <Star size={11} fill={favorites.includes(mod.slug) ? 'currentColor' : 'none'} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+            {displayMods.length === 0 && !loading && (
+              <div className="text-center py-12"><Package size={36} className="text-mc-border mx-auto" /><p className="text-sm text-mc-muted mt-2">{t('versions.empty')}</p></div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

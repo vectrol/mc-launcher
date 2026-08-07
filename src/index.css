@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --mc-bg: #0a0a0f;
+  --mc-surface: #12121a;
+  --mc-card: #1a1a25;
+  --mc-border: #25253a;
+  --mc-accent: #6366f1;
+  --mc-accent-hover: #818cf8;
+  --mc-text: #e2e2f0;
+  --mc-muted: #6b6b80;
+  --mc-green: #22c55e;
+  --mc-red: #ef4444;
+  --mc-orange: #f59e0b;
+  --mc-radius: 0.75rem;
+  --mc-shadow: 0 4px 24px rgba(0,0,0,0.4);
+}
+
+[data-theme='light'] {
+  --mc-bg: #f7f8fc;
+  --mc-surface: #ffffff;
+  --mc-card: #f0f2f8;
+  --mc-border: #e4e7f0;
+  --mc-accent: #6366f1;
+  --mc-accent-hover: #4f46e5;
+  --mc-text: #1a1a2e;
+  --mc-muted: #757a8c;
+  --mc-green: #16a34a;
+  --mc-red: #dc2626;
+  --mc-orange: #d97706;
+  --mc-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  overflow: hidden;
+  user-select: none;
+  background: var(--mc-bg);
+  color: var(--mc-text);
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--mc-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--mc-muted); }
+
+.drag-region { -webkit-app-region: drag; }
+.no-drag { -webkit-app-region: no-drag; }
+
+@layer utilities {
+  .glass {
+    background: color-mix(in srgb, var(--mc-surface) 80%, transparent);
+    backdrop-filter: blur(24px);
+    border: 1px solid color-mix(in srgb, var(--mc-border) 50%, transparent);
+  }
+  .glass-strong {
+    background: color-mix(in srgb, var(--mc-card) 90%, transparent);
+    backdrop-filter: blur(32px);
+    border: 1px solid color-mix(in srgb, var(--mc-border) 60%, transparent);
+  }
+  .text-gradient {
+    background: linear-gradient(135deg, var(--mc-accent), #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+@keyframes dropPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(99,102,241,0); }
+}
+.drop-active { animation: dropPulse 1.5s ease-in-out infinite; }
