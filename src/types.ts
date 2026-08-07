@@ -188,6 +188,10 @@ export interface AppSettings {
   curseforgeKey: string;
   instanceSettings: Record<string, any>;
   lastKnownVersion: string;
+  playTime: Record<string, number>;
+  javaScan: any[];
+  launchPresets: { name: string; memory: string; jvmArgs: string }[];
+  bgImage: string;
   windowWidth: number;
   windowHeight: number;
   lastPlayed: string[];
@@ -318,6 +322,18 @@ interface ElectronAPI {
     getErrorLog: () => Promise<string>;
     clearErrorLog: () => Promise<void>;
     importMinecraftFolder: (folderPath: string) => Promise<{ success: boolean; name: string; mcVersion: string }>;
+    getCrashDetail: (file: string) => Promise<any>;
+    scanJava: () => Promise<{ path: string; version: string; major: number }[]>;
+    recommendedJava: (mcVersion: string) => Promise<number>;
+    runDiagnostics: () => Promise<{ network: { host: string; ok: boolean; ms?: number; error?: string }[]; java: any[] }>;
+    autoSelectSource: () => Promise<{ best: string; mojang: number; bmclapi: number }>;
+    getPlayTime: () => Promise<Record<string, number>>;
+    getDownloadStats: () => Promise<{ totalBytes: number }>;
+    savePresets: (presets: any[]) => Promise<void>;
+    getInstanceIcon: (versionId: string) => Promise<string>;
+    setInstanceIcon: (versionId: string, iconPath: string) => Promise<{ success: boolean; icon: string }>;
+    setBgImage: (path: string) => Promise<void>;
+    getBgImage: () => Promise<string>;
   };
 }
 

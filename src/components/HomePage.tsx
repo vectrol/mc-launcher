@@ -14,6 +14,8 @@ interface Props {
 export default function HomePage({ installedList, onLaunch, launching, manifest, t }: Props) {
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
+  const [playTime, setPlayTime] = useState<Record<string, number>>({});
+  const [dlBytes, setDlBytes] = useState(0);
   const tips = [
     t('home.tip1'), t('home.tip2'), t('home.tip3'), t('home.tip4'),
   ];
@@ -26,7 +28,22 @@ export default function HomePage({ installedList, onLaunch, launching, manifest,
 
   useEffect(() => {
     window.electronAPI.mc.getMinecraftNews().then((n) => { setNews(n); setNewsLoading(false); });
+    window.electronAPI.mc.getPlayTime().then(setPlayTime).catch(() => {});
+    window.electronAPI.mc.getDownloadStats().then((s) => setDlBytes(s.totalBytes)).catch(() => {});
   }, []);
+
+  // Playtime aggregation
+  const today = new Date().toISOString().slice(0, 10);
+  const todaySec = playTime[today] || 0;
+  const weekSec = Object.entries(playTime)
+    .filter(([d]) => d >= new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10))
+    .reduce((a, [, v]) => a + v, 0);
+  const totalSec = Object.values(playTime).reduce((a, v) => a + v, 0);
+  const fmtDur = (sec: number) => {
+    if (sec < 60) return `${sec}s`;
+    if (sec < 3600) return `${Math.floor(sec / 60)}m`;
+    return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
+  };
 
   const latestInstalled = installedList[0];
 
@@ -65,9 +82,12 @@ export default function HomePage({ installedList, onLaunch, launching, manifest,
         </motion.div>
 
         {/* Stats row */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
           {[
             { icon: Package, label: t('home.installed'), value: installedList.length, color: 'text-mc-green' },
+            { icon: Clock, label: t('home.today'), value: fmtDur(todaySec), color: 'text-mc-accent-hover' },
+            { icon: Clock, label: t('home.week'), value: fmtDur(weekSec), color: 'text-mc-accent' },
+            { icon: TrendingUp, label: t('home.total'), value: fmtDur(totalSec), color: 'text-mc-text' },
             { icon: HardDrive, label: t('sidebar.totalVersions'), value: manifest?.versions?.length || '-', color: 'text-mc-accent-hover' },
             { icon: TrendingUp, label: t('sidebar.latestRelease'), value: manifest?.latest?.release || '-', color: 'text-mc-text' },
           ].map((stat, i) => (

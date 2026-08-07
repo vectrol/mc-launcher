@@ -28,6 +28,14 @@ const DEFAULT_SETTINGS = {
   instanceSettings: {},
   jvmArgs: '',
   lastKnownVersion: '',
+  playTime: {}, // { "YYYY-MM-DD": seconds }
+  javaScan: [],
+  launchPresets: [
+    { name: 'Balanced', memory: '4096', jvmArgs: '-XX:+UseG1GC' },
+    { name: 'Low-end', memory: '2048', jvmArgs: '-XX:+UseSerialGC' },
+    { name: 'High-end', memory: '8192', jvmArgs: '-XX:+UseG1GC -XX:+AggressiveOpts' },
+  ],
+  bgImage: '',
 };
 
 function loadSettings() {

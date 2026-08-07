@@ -1,6 +1,6 @@
 import { useState, useEffect, DragEvent, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Trash2, Package, FolderOpen, FolderInput, Loader2, Puzzle, ChevronDown, Image, HardDrive, Archive, Download, Power, Copy, Pencil, Settings as SettingsIcon, X, RefreshCw } from 'lucide-react';
+import { Play, Trash2, Package, FolderOpen, FolderInput, Loader2, Puzzle, ChevronDown, Image as ImageIcon, HardDrive, Archive, Download, Power, Copy, Pencil, Settings as SettingsIcon, X, RefreshCw, Star, CheckSquare } from 'lucide-react';
 import { InstalledVersion, ModInfo, WorldInfo, ResourcePackInfo } from '../types';
 
 interface Props {
@@ -19,16 +19,57 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [editMode, setEditMode] = useState<null | { type: 'clone' | 'rename'; id: string }>(null);
   const [editName, setEditName] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'time' | 'mods'>('name');
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [icons, setIcons] = useState<Record<string, string>>({});
+  const iconRef = useRef<HTMLInputElement>(null);
+  const [iconTarget, setIconTarget] = useState('');
 
-  useEffect(() => { loadVersions(); }, []);
+  useEffect(() => {
+    loadVersions();
+    try { setFavorites(JSON.parse(localStorage.getItem('mc_fav_versions') || '[]')); } catch {}
+  }, []);
+
+  function toggleFavorite(id: string) {
+    setFavorites(prev => {
+      const next = prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id];
+      localStorage.setItem('mc_fav_versions', JSON.stringify(next));
+      return next;
+    });
+  }
+
+  async function loadIcon(id: string) {
+    if (icons[id]) return;
+    const b64 = await window.electronAPI.mc.getInstanceIcon(id);
+    if (b64) setIcons(prev => ({ ...prev, [id]: b64 }));
+  }
+
+  async function handleIconFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (f && iconTarget) {
+      try { await window.electronAPI.mc.setInstanceIcon(iconTarget, (f as any).path); setIcons(prev => ({ ...prev, [iconTarget]: URL.createObjectURL(f) })); } catch {}
+    }
+    setIconTarget('');
+    if (iconRef.current) iconRef.current.value = '';
+  }
 
   useEffect(() => {
     if (expandedId) {
       const v = versions.find((v) => v.id === expandedId);
       if (v && (!v.hasJar && v.modCount === 0)) setActiveSubTab('worlds');
       else setActiveSubTab('mods');
+      loadIcon(expandedId);
     }
   }, [expandedId]);
+
+  const sortedVersions = [...versions].sort((a, b) => {
+    const fa = favorites.includes(a.id) ? 0 : 1;
+    const fb = favorites.includes(b.id) ? 0 : 1;
+    if (fa !== fb) return fa - fb;
+    if (sortBy === 'name') return a.id.localeCompare(b.id);
+    if (sortBy === 'mods') return b.modCount - a.modCount;
+    return (b.releaseTime || '').localeCompare(a.releaseTime || '');
+  });
 
   async function loadVersions() {
     try { setLoading(true); setVersions(await window.electronAPI.mc.getInstalledVersions()); }
@@ -48,7 +89,13 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
           <h2 className="text-lg font-semibold">{t('library.title')}</h2>
           <p className="text-xs text-mc-muted">{versions.length} {t('installed.count')}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}
+            className="px-3 py-2 rounded-xl bg-mc-card/50 border border-mc-border text-xs text-mc-muted outline-none">
+            <option value="name">{t('library.sortName')}</option>
+            <option value="time">{t('library.sortTime')}</option>
+            <option value="mods">{t('library.sortMods')}</option>
+          </select>
           <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
             onClick={async () => {
               const folder = prompt(t('library.importHint'));
@@ -81,7 +128,7 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
           </div>
         ) : (
           <div className="space-y-2">
-            {versions.map((v) => (
+            {sortedVersions.map((v) => (
               <motion.div
                 key={v.id}
                 layout
@@ -96,11 +143,16 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
                     <motion.div animate={{ rotate: expandedId === v.id ? 0 : -90 }} transition={{ duration: 0.2 }}>
                       <ChevronDown size={14} className="text-mc-muted" />
                     </motion.div>
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-mc-accent/20 to-purple-500/20 border border-mc-accent/20 flex items-center justify-center shrink-0">
-                      {installingId === v.id ? <Loader2 size={18} className="animate-spin text-mc-accent" /> : <Play size={16} className="text-mc-accent" />}
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-mc-accent/20 to-purple-500/20 border border-mc-accent/20 flex items-center justify-center shrink-0 overflow-hidden"
+                      onMouseEnter={() => loadIcon(v.id)}>
+                      {icons[v.id] ? <img src={icons[v.id]} alt="" className="w-full h-full object-cover" />
+                        : installingId === v.id ? <Loader2 size={18} className="animate-spin text-mc-accent" /> : <Play size={16} className="text-mc-accent" />}
                     </div>
                     <div>
-                      <h3 className="font-mono font-medium text-sm text-mc-text">{v.id}</h3>
+                      <h3 className="font-mono font-medium text-sm text-mc-text flex items-center gap-1.5">
+                        {favorites.includes(v.id) && <Star size={11} className="text-mc-orange" fill="currentColor" />}
+                        {v.id}
+                      </h3>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-mc-accent/10 text-mc-accent-hover font-semibold">
                           {v.isModded ? v.type : t(v.type === 'release' ? 'card.release' : v.type === 'snapshot' ? 'card.snapshot' : 'card.custom')}
@@ -114,6 +166,15 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
+                    <button onClick={() => toggleFavorite(v.id)}
+                      className="p-2 rounded-lg text-mc-muted hover:text-mc-orange transition-all"
+                      title={favorites.includes(v.id) ? t('library.unfav') : t('library.fav')}>
+                      <Star size={14} fill={favorites.includes(v.id) ? 'currentColor' : 'none'} className={favorites.includes(v.id) ? 'text-mc-orange' : ''} />
+                    </button>
+                    <button onClick={() => { setIconTarget(v.id); iconRef.current?.click(); }}
+                      className="p-2 rounded-lg text-mc-muted hover:text-mc-accent-hover transition-all" title={t('library.setIcon')}>
+                      <ImageIcon size={14} />
+                    </button>
                     <AnimatePresence>
                       {editMode?.id === v.id ? (
                         <motion.div key="edit" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
@@ -187,7 +248,7 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
                           {([
                             { k: 'mods' as SubTab, icon: Puzzle, label: t('mods.title') },
                             { k: 'worlds' as SubTab, icon: HardDrive, label: t('worlds.title') },
-                            { k: 'rpacks' as SubTab, icon: Image, label: t('rp.title') },
+                            { k: 'rpacks' as SubTab, icon: ImageIcon, label: t('rp.title') },
                             { k: 'settings' as SubTab, icon: SettingsIcon, label: t('nav.settings') },
                           ]).map((tab) => (
                             <button key={tab.k} onClick={() => setActiveSubTab(tab.k)}
@@ -234,6 +295,7 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
           </div>
         )}
       </div>
+      <input ref={iconRef} type="file" accept=".png,.jpg,.gif" className="hidden" onChange={handleIconFile} />
     </div>
   );
 }
@@ -248,12 +310,32 @@ function VersionMods({ versionId, t }: { versionId: string; t: Props['t'] }) {
   const [batchUpdating, setBatchUpdating] = useState(false);
   const [batchProgress, setBatchProgress] = useState(0);
   const [batchResult, setBatchResult] = useState<number | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     window.electronAPI.mc.getMods(versionId).then(setMods).catch(() => {});
     window.electronAPI.mc.detectModConflicts(versionId).then(setConflicts).catch(() => {});
   }, [versionId]);
+
+  function toggleSelect(name: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  }
+
+  async function batchAction(action: 'disable' | 'enable' | 'delete') {
+    for (const name of selected) {
+      try {
+        if (action === 'delete') await window.electronAPI.mc.deleteMod(versionId, name);
+        else await window.electronAPI.mc.toggleMod(versionId, name);
+      } catch {}
+    }
+    setSelected(new Set());
+    setMods(await window.electronAPI.mc.getMods(versionId));
+  }
 
   async function importFiles(paths: string[]) {
     setImporting(true);
@@ -359,20 +441,44 @@ function VersionMods({ versionId, t }: { versionId: string; t: Props['t'] }) {
       )}
 
       {mods.map(m => (
-        <div key={m.fileName} className={`flex items-center justify-between p-2 rounded-xl border text-xs ${m.disabled ? 'bg-mc-card/10 border-mc-border/20 opacity-50' : 'bg-mc-card/30 border-mc-border/30'}`}>
-          <span className="font-mono truncate">{m.name}{m.disabled && ' (off)'}</span>
+        <div key={m.fileName} onClick={() => toggleSelect(m.fileName)}
+          className={`flex items-center justify-between p-2 rounded-xl border text-xs cursor-pointer transition-colors ${
+            selected.has(m.fileName) ? 'bg-mc-accent/15 border-mc-accent/40'
+              : m.disabled ? 'bg-mc-card/10 border-mc-border/20 opacity-50' : 'bg-mc-card/30 border-mc-border/30'
+          }`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <input type="checkbox" checked={selected.has(m.fileName)} onChange={() => toggleSelect(m.fileName)}
+              className="accent-mc-accent shrink-0" />
+            <span className="font-mono truncate">{m.name}{m.disabled && ' (off)'}</span>
+          </div>
           <div className="flex gap-1 shrink-0">
-            <button onClick={async () => { await window.electronAPI.mc.toggleMod(versionId, m.fileName); setMods(await window.electronAPI.mc.getMods(versionId)); }}
+            <button onClick={(e) => { e.stopPropagation(); toggleSelect(m.fileName); }}
+              className={`p-1 rounded transition-colors ${selected.has(m.fileName) ? 'text-mc-accent-hover bg-mc-accent/10' : 'text-mc-muted'}`}>
+              <CheckSquare size={10} />
+            </button>
+            <button onClick={async (e) => { e.stopPropagation(); await window.electronAPI.mc.toggleMod(versionId, m.fileName); setMods(await window.electronAPI.mc.getMods(versionId)); }}
               className={`p-1 rounded transition-colors ${m.disabled ? 'text-mc-green hover:bg-mc-green/10' : 'text-mc-orange hover:bg-mc-orange/10'}`}
               title={m.disabled ? 'Enable' : 'Disable'}>
               <Power size={10} />
             </button>
-            <button onClick={async () => { await window.electronAPI.mc.deleteMod(versionId, m.fileName); setMods(mods.filter(x => x.fileName !== m.fileName)); }}
+            <button onClick={async (e) => { e.stopPropagation(); await window.electronAPI.mc.deleteMod(versionId, m.fileName); setMods(mods.filter(x => x.fileName !== m.fileName)); }}
               className="p-1 rounded hover:bg-mc-red/10 text-mc-muted hover:text-mc-red"><Trash2 size={10} /></button>
           </div>
         </div>
       ))}
       {mods.length === 0 && <p className="text-xs text-mc-muted py-2 italic">{t('mods.empty')}</p>}
+
+      {/* Batch operations bar */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-1.5 p-2 rounded-xl bg-mc-accent/10 border border-mc-accent/25 text-[10px]">
+          <span className="text-mc-accent-hover font-medium">{selected.size} {t('mods.selected')}</span>
+          <div className="flex-1" />
+          <button onClick={() => batchAction('disable')} className="px-2 py-1 rounded-lg bg-mc-orange/15 text-mc-orange hover:bg-mc-orange/25 transition-colors">{t('mods.disable')}</button>
+          <button onClick={() => batchAction('enable')} className="px-2 py-1 rounded-lg bg-mc-green/15 text-mc-green hover:bg-mc-green/25 transition-colors">{t('mods.enable')}</button>
+          <button onClick={() => batchAction('delete')} className="px-2 py-1 rounded-lg bg-mc-red/15 text-mc-red hover:bg-mc-red/25 transition-colors">{t('mods.delete')}</button>
+          <button onClick={() => setSelected(new Set())} className="p-1 text-mc-muted hover:text-mc-text"><X size={11} /></button>
+        </div>
+      )}
     </div>
   );
 }
@@ -434,7 +540,7 @@ function VersionResourcePacks({ t }: { t: Props['t'] }) {
         <div className="flex flex-wrap gap-1.5">
           {packs.map(p => (
             <div key={p.name} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-mc-card/30 border border-mc-border/30 text-[10px] group">
-              <Image size={10} className="text-mc-muted" /><span className="truncate max-w-[120px]">{p.name}</span>
+              <ImageIcon size={10} className="text-mc-muted" /><span className="truncate max-w-[120px]">{p.name}</span>
               <button onClick={async () => { await window.electronAPI.mc.deleteResourcePack(p.name); setPacks(packs.filter(x => x.name !== p.name)); }}
                 className="opacity-0 group-hover:opacity-100 text-mc-muted hover:text-mc-red"><Trash2 size={9} /></button>
             </div>

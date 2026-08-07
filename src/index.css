@@ -47,6 +47,18 @@ body {
   color: var(--mc-text);
 }
 
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: var(--mc-bg-image, none);
+  background-size: cover;
+  background-position: center;
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: 0;
+}
+
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--mc-border); border-radius: 3px; }

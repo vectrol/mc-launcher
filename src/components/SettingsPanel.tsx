@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Palette, Languages, Cpu, Settings2, Save, CheckCircle2, HelpCircle, Keyboard, FolderOpen, ExternalLink, Info, RefreshCw, Loader2, Terminal, Download } from 'lucide-react';
+import { Palette, Languages, Cpu, Settings2, Save, CheckCircle2, HelpCircle, Keyboard, FolderOpen, ExternalLink, Info, RefreshCw, Loader2, Terminal, Download, Activity, Image as ImageIcon } from 'lucide-react';
 import { AppSettings } from '../types';
 import { Lang } from '../i18n';
 
@@ -46,6 +46,29 @@ export default function SettingsPanel({ t }: Props) {
       setUpdateDownloaded(true); setUpdateProgress(100);
     } catch {}
     setDownloadingUpdate(false);
+  }
+
+  // v2.5: Java scan / diagnostics / auto-source / presets
+  const [javaList, setJavaList] = useState<any[]>([]);
+  const [javaScanning, setJavaScanning] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<any>(null);
+  const [diagRunning, setDiagRunning] = useState(false);
+
+  async function handleScanJava() {
+    setJavaScanning(true);
+    try { setJavaList(await window.electronAPI.mc.scanJava()); } catch {}
+    setJavaScanning(false);
+  }
+
+  async function handleDiagnostics() {
+    setDiagRunning(true);
+    try { setDiagnostics(await window.electronAPI.mc.runDiagnostics()); } catch {}
+    setDiagRunning(false);
+  }
+
+  async function handleAutoSource() {
+    try { const r = await window.electronAPI.mc.autoSelectSource(); const s = await window.electronAPI.mc.getSettings(); setSettings(s); }
+    catch {}
   }
 
   useEffect(() => { loadSettings(); }, []);
@@ -134,12 +157,42 @@ export default function SettingsPanel({ t }: Props) {
                   </div>
 
                   <div>
-                    <label className="text-xs text-mc-muted uppercase tracking-widest block mb-2">{t('settings.language')}</label>
+                    <label className="text-xs text-mc-muted uppercase tracking-widest block mb-2">{t('settings.bgImage')}</label>
                     <div className="flex gap-2">
-                      {(['zh-CN', 'en-US', 'ja-JP', 'ko-KR'] as Lang[]).map((lang) => (
+                      <input type="file" accept=".png,.jpg,.jpeg" className="hidden" id="bgImageInput"
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0];
+                          if (f) {
+                            await window.electronAPI.mc.setBgImage((f as any).path);
+                            document.documentElement.style.setProperty('--mc-bg-image', `url("file:///${((f as any).path as string).replace(/\\/g, '/')}")`);
+                            const s = await window.electronAPI.mc.getSettings(); setSettings(s);
+                          }
+                          e.target.value = '';
+                        }} />
+                      <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                        onClick={() => (document.getElementById('bgImageInput') as HTMLInputElement)?.click()}
+                        className="flex-1 py-2.5 rounded-xl bg-mc-card border border-mc-border text-sm text-mc-muted hover:text-mc-text transition-all">
+                        <ImageIcon size={13} className="inline mr-1" />{t('settings.bgImageHint')}
+                      </motion.button>
+                      <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                        onClick={async () => {
+                          await window.electronAPI.mc.setBgImage('');
+                          document.documentElement.style.setProperty('--mc-bg-image', 'none');
+                          const s = await window.electronAPI.mc.getSettings(); setSettings(s);
+                        }}
+                        className="px-3 py-2.5 rounded-xl bg-mc-card border border-mc-border text-xs text-mc-muted hover:text-mc-red transition-all">
+                        {t('settings.clearBg')}
+                      </motion.button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-mc-muted uppercase tracking-widest block mb-2">{t('settings.language')}</label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {(['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'es-ES', 'ru-RU'] as Lang[]).map((lang) => (
                         <motion.button key={lang} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => handleSave({ language: lang })}
-                          className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${settings.language === lang ? 'bg-mc-accent/15 text-mc-accent-hover border-mc-accent/30' : 'bg-mc-card border-mc-border text-mc-muted hover:text-mc-text'}`}>
-                          {t(`settings.lang${lang === 'zh-CN' ? 'Zh' : lang === 'en-US' ? 'En' : lang === 'ja-JP' ? 'Ja' : 'Ko'}`)}
+                          className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-all ${settings.language === lang ? 'bg-mc-accent/15 text-mc-accent-hover border-mc-accent/30' : 'bg-mc-card border-mc-border text-mc-muted hover:text-mc-text'}`}>
+                          {t(`settings.lang${lang === 'zh-CN' ? 'Zh' : lang === 'en-US' ? 'En' : lang === 'ja-JP' ? 'Ja' : lang === 'ko-KR' ? 'Ko' : lang === 'es-ES' ? 'Es' : 'Ru'}`)}
                         </motion.button>
                       ))}
                     </div>
@@ -156,6 +209,24 @@ export default function SettingsPanel({ t }: Props) {
                       onChange={(e) => setSettings({ ...settings, javaPath: e.target.value })}
                       placeholder={t('settings.javaPathHint')}
                       className="w-full bg-mc-card border border-mc-border rounded-xl px-4 py-2.5 text-sm text-mc-text placeholder-mc-muted outline-none focus:border-mc-accent/50 transition-colors font-mono" />
+                    <button onClick={handleScanJava} disabled={javaScanning}
+                      className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-mc-card/50 border border-mc-border text-[10px] text-mc-muted hover:text-mc-accent-hover transition-all disabled:opacity-40">
+                      {javaScanning ? <Loader2 size={10} className="animate-spin" /> : <Cpu size={10} />}
+                      {t('settings.scanJava')}
+                    </button>
+                    {javaList.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {javaList.map(j => (
+                          <button key={j.path} onClick={() => handleSave({ javaPath: j.path })}
+                            className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[10px] border transition-all ${
+                              settings.javaPath === j.path ? 'bg-mc-accent/15 border-mc-accent/30 text-mc-accent-hover' : 'bg-mc-card/30 border-mc-border/30 text-mc-muted hover:text-mc-text'
+                            }`}>
+                            <span className="font-mono">Java {j.version}</span>
+                            <span className="text-mc-muted truncate ml-2">{j.path}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs text-mc-muted uppercase tracking-widest block mb-2">{t('settings.maxMemory')}</label>
@@ -198,7 +269,33 @@ export default function SettingsPanel({ t }: Props) {
                       {src === 'mojang' ? 'Mojang' : 'BMCLAPI (镜像)'}
                     </motion.button>
                   ))}
+                  <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={handleAutoSource}
+                    className="px-3 py-2.5 rounded-xl text-[11px] border border-mc-accent/30 text-mc-accent-hover bg-mc-accent/10 hover:bg-mc-accent/20 transition-all">
+                    {t('settings.autoSource')}
+                  </motion.button>
                 </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-mc-muted uppercase tracking-widest block mb-2">{t('settings.diagnostics')}</label>
+                <button onClick={handleDiagnostics} disabled={diagRunning}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-mc-card/50 border border-mc-border text-[10px] text-mc-muted hover:text-mc-accent-hover transition-all disabled:opacity-40">
+                  {diagRunning ? <Loader2 size={11} className="animate-spin" /> : <Activity size={11} />}
+                  {t('settings.runDiag')}
+                </button>
+                {diagnostics && (
+                  <div className="mt-2 space-y-1">
+                    {diagnostics.network.map((n: any) => (
+                      <div key={n.host} className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-mc-card/30 border border-mc-border/30 text-[10px]">
+                        <span className="font-mono text-mc-muted">{n.host}</span>
+                        {n.ok ? <span className="text-mc-green">{n.ms}ms</span> : <span className="text-mc-red">{n.error || '✗'}</span>}
+                      </div>
+                    ))}
+                    {diagnostics.java.length > 0 && (
+                      <p className="text-[10px] text-mc-muted px-1">Java: {diagnostics.java.map((j: any) => j.version).join(', ')}</p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>

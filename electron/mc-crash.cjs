@@ -51,6 +51,43 @@ function getCrashSuggestion(crash) {
   return 'Check the full crash report in the game directory.';
 }
 
+function getCrashDetail(file) {
+  const crashDir = path.join(BASE_DIR, 'crash-reports');
+  const p = path.join(crashDir, file);
+  if (!fs.existsSync(p)) return null;
+  const content = fs.readFileSync(p, 'utf-8');
+  // Extract key sections
+  const lines = content.split('\n');
+  const sections = {
+    time: '', description: '', stacktrace: '', system: '',
+  };
+  const timeIdx = lines.findIndex(l => l.startsWith('Time: '));
+  if (timeIdx >= 0) sections.time = lines[timeIdx].replace('Time: ', '');
+  const descIdx = lines.findIndex(l => l.startsWith('Description: '));
+  if (descIdx >= 0) {
+    sections.description = lines[descIdx].replace('Description: ', '');
+    // Stacktrace follows after a blank line
+    let i = descIdx + 1;
+    while (i < lines.length && !lines[i].trim()) i++;
+    const stack = [];
+    while (i < lines.length && stack.length < 30 && !lines[i].startsWith('--')) {
+      if (lines[i].trim()) stack.push(lines[i]);
+      i++;
+    }
+    sections.stacktrace = stack.join('\n');
+  }
+  // System details section
+  const sysIdx = lines.findIndex(l => l.startsWith('System Details'));
+  if (sysIdx >= 0) {
+    const sys = [];
+    for (let i = sysIdx + 1; i < Math.min(sysIdx + 30, lines.length); i++) {
+      if (lines[i].trim()) sys.push(lines[i]);
+    }
+    sections.system = sys.join('\n');
+  }
+  return { file, ...sections, full: content };
+}
+
 // ─── Pre-launch validation ─────────────────────────────────
 
 const { execSync } = require('child_process');
@@ -107,4 +144,4 @@ function validateDiskSpace() {
   return { valid: true };
 }
 
-module.exports = { checkCrashReports, getCrashSuggestion, validateJava, validateVersion, validateDiskSpace };
+module.exports = { checkCrashReports, getCrashSuggestion, getCrashDetail, validateJava, validateVersion, validateDiskSpace };

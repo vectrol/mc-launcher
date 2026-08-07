@@ -15,6 +15,7 @@ import SplashOverlay from './components/SplashOverlay';
 import DownloadQueuePanel from './components/DownloadQueuePanel';
 import FriendPanel from './components/FriendPanel';
 import GameMonitor from './components/GameMonitor';
+import CrashDetailModal from './components/CrashDetailModal';
 import { ToastProvider, useToast } from './components/Toast';
 import { VersionManifest, DownloadProgress, InstalledVersion, AccountInfo } from './types';
 import { translations, Lang, formatT } from './i18n';
@@ -49,6 +50,7 @@ function LauncherApp() {
   const [lang, setLang] = useState<Lang>('zh-CN');
   const [splashVisible, setSplashVisible] = useState(false);
   const [splashVersion, setSplashVersion] = useState('');
+  const [crashDetail, setCrashDetail] = useState<any>(null);
 
   const t = (key: string, ...args: (string | number)[]) => {
     const dict = translations[lang] || translations['zh-CN'];
@@ -101,6 +103,12 @@ function LauncherApp() {
       const s = await window.electronAPI.mc.getSettings();
       setLang(s.language || 'zh-CN');
       document.documentElement.setAttribute('data-theme', s.theme || 'dark');
+      // Apply background image
+      if (s.bgImage) {
+        document.documentElement.style.setProperty('--mc-bg-image', `url("file:///${(s.bgImage as string).replace(/\\/g, '/')}")`);
+      } else {
+        document.documentElement.style.setProperty('--mc-bg-image', 'none');
+      }
     } catch {}
   }
 
@@ -171,6 +179,9 @@ function LauncherApp() {
         const latest = crashes[0];
         const suggestion = await window.electronAPI.mc.getCrashSuggestion(latest);
         toast(t('notify.crash', latest.description, suggestion), 'error');
+        // Load full detail for the modal
+        const detail = await window.electronAPI.mc.getCrashDetail(latest.file);
+        if (detail) setCrashDetail(detail);
       }
     } catch (e: any) {
       setSplashVisible(false);
@@ -345,6 +356,9 @@ function LauncherApp() {
 
       {/* Splash */}
       <SplashOverlay visible={splashVisible} versionId={splashVersion} t={t} />
+
+      {/* Crash detail modal */}
+      <CrashDetailModal crash={crashDetail} onClose={() => setCrashDetail(null)} t={t} />
 
       {/* Download Queue */}
       <DownloadQueuePanel t={t} />

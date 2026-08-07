@@ -80,4 +80,30 @@ function setInstanceSettings(versionId, patch) {
   return s.instanceSettings[versionId];
 }
 
-module.exports = { cloneVersion, renameVersion, getInstanceSettings, setInstanceSettings };
+function setInstanceIcon(versionId, iconPath) {
+  const src = iconPath;
+  if (!fs.existsSync(src)) throw new Error('Icon not found');
+  const destDir = path.join(VERSIONS_DIR, versionId);
+  ensureDir(destDir);
+  const ext = path.extname(src) || '.png';
+  const dest = path.join(destDir, `instance-icon${ext}`);
+  fs.copyFileSync(src, dest);
+  // Store in instance settings for UI to read
+  setInstanceSettings(versionId, { icon: `instance-icon${ext}` });
+  return { success: true, icon: `instance-icon${ext}` };
+}
+
+function getInstanceIcon(versionId) {
+  const settings = getInstanceSettings(versionId);
+  const iconFile = settings.icon;
+  if (!iconFile) return '';
+  const p = path.join(VERSIONS_DIR, versionId, iconFile);
+  if (fs.existsSync(p)) {
+    const ext = path.extname(p).toLowerCase();
+    const mime = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : ext === '.gif' ? 'image/gif' : 'image/png';
+    return `data:${mime};base64,${fs.readFileSync(p).toString('base64')}`;
+  }
+  return '';
+}
+
+module.exports = { cloneVersion, renameVersion, getInstanceSettings, setInstanceSettings, setInstanceIcon, getInstanceIcon };

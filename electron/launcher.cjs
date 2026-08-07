@@ -308,6 +308,9 @@ function launchGame(versionId, mainWindow) {
         saveSettings({ lastPlayed });
       } catch {}
 
+      // Session start for playtime tracking
+      const sessionStart = Date.now();
+
       // Game process monitor: poll memory (Windows tasklist) + parse FPS from logs
       const monitorInterval = setInterval(() => {
         try {
@@ -368,6 +371,17 @@ function launchGame(versionId, mainWindow) {
       child.on('close', (code) => {
         gameClosed = true;
         clearInterval(monitorInterval);
+        // Accumulate playtime
+        try {
+          const seconds = Math.round((Date.now() - sessionStart) / 1000);
+          if (seconds > 5) {
+            const s = loadSettings();
+            const playTime = s.playTime || {};
+            const today = new Date().toISOString().slice(0, 10);
+            playTime[today] = (playTime[today] || 0) + seconds;
+            saveSettings({ playTime });
+          }
+        } catch {}
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('mc:gameClosed', code);
         }

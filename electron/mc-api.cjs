@@ -288,4 +288,28 @@ function formatSpeed(bytesPerSec) {
   return `${Math.round(bytesPerSec)} B/s`;
 }
 
-module.exports = { getVersionManifest, getVersionInfo, downloadVersion, getVersionChangelog, BASE_DIR, VERSIONS_DIR, ASSETS_DIR, LIBRARIES_DIR, MODS_DIR };
+// ─── Download source auto-select (speed test) ──────────────
+
+async function testSourceLatency(url, timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    const mod = url.startsWith('https') ? https : http;
+    const start = Date.now();
+    const req = mod.get(url, { headers: { 'User-Agent': 'MCLauncher' } }, (res) => {
+      res.destroy();
+      resolve({ ok: true, ms: Date.now() - start });
+    });
+    req.on('error', () => resolve({ ok: false, ms: 9999 }));
+    req.setTimeout(timeoutMs, () => { req.destroy(); resolve({ ok: false, ms: 9999 }); });
+  });
+}
+
+async function autoSelectSource() {
+  const mojang = await testSourceLatency('https://launchermeta.mojang.com/mc/game/version_manifest.json');
+  const bmcl = await testSourceLatency('https://bmclapi2.bangbang93.com/mc/game/version_manifest.json');
+  const best = bmcl.ok && bmcl.ms < mojang.ms ? 'bmclapi' : 'mojang';
+  const { saveSettings } = require('./mc-settings.cjs');
+  saveSettings({ downloadSource: best, sourceLatency: { mojang: mojang.ms, bmclapi: bmcl.ms } });
+  return { best, mojang: mojang.ms, bmclapi: bmcl.ms };
+}
+
+module.exports = { getVersionManifest, getVersionInfo, downloadVersion, getVersionChangelog, autoSelectSource, BASE_DIR, VERSIONS_DIR, ASSETS_DIR, LIBRARIES_DIR, MODS_DIR };

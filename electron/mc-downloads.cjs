@@ -54,6 +54,18 @@ async function processQueue() {
   }
 }
 
+// ─── Download stats ────────────────────────────────────────
+let totalBytes = 0;
+const statsListeners = new Set();
+function subscribeStats(cb) { statsListeners.add(cb); return () => statsListeners.delete(cb); }
+function addBytes(n) { totalBytes += n; for (const cb of statsListeners) cb(totalBytes); }
+function getDownloadStats() {
+  const { loadSettings } = require('./mc-settings.cjs');
+  const s = loadSettings();
+  const bytes = s.downloadBytes || 0;
+  return { totalBytes: bytes + totalBytes };
+}
+
 // ─── Download with resume + bandwidth + SHA-1 ──────────────
 function downloadFileInternal(url, destPath, { onProgress, startByte = 0 } = {}) {
   return new Promise((resolve, reject) => {
@@ -87,6 +99,7 @@ function downloadFileInternal(url, destPath, { onProgress, startByte = 0 } = {})
       res.on('data', (chunk) => {
         downloaded += chunk.length;
         bytesThisInterval += chunk.length;
+        addBytes(chunk.length);
         hash.update(chunk);
         const now = Date.now();
         if (now - lastTick > 200) {
@@ -137,4 +150,5 @@ async function downloadFileResume(url, destPath, onProgress) {
 module.exports = {
   downloadFile, downloadFileResume, sha1File,
   addToQueue, pauseTask, resumeTask, cancelTask, getQueue, subscribe,
+  getDownloadStats, subscribeStats,
 };

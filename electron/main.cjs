@@ -21,6 +21,10 @@ const { startBroadcast, stopBroadcast, startLanScanner, getFriends, addFriend, r
 const { checkModsForUpdates, detectModConflicts, updateAllMods } = require('./mc-modtools.cjs');
 const { searchCurseForge, getCurseForgeFiles } = require('./mc-online.cjs');
 const { logError, getErrorLog, clearErrorLog, checkForUpdates, downloadUpdate, importMinecraftFolder } = require('./mc-update.cjs');
+const { scanJava, recommendedJavaMajor, runDiagnostics } = require('./mc-java.cjs');
+const { getCrashDetail } = require('./mc-crash.cjs');
+const { autoSelectSource } = require('./mc-api.cjs');
+const { getInstanceIcon, setInstanceIcon } = require('./mc-instances.cjs');
 
 let mainWindow = null;
 
@@ -62,6 +66,20 @@ app.whenReady().then(() => {
   // Start P2P LAN services
   startBroadcast();
   startLanScanner();
+  // CLI: --launch <versionId> [--account <id>]
+  const args = process.argv.slice(1);
+  const launchIdx = args.findIndex(a => a === '--launch');
+  if (launchIdx >= 0 && args[launchIdx + 1]) {
+    const versionId = args[launchIdx + 1];
+    const acctIdx = args.findIndex(a => a === '--account');
+    if (acctIdx >= 0 && args[acctIdx + 1]) {
+      const { setActiveAccount } = require('./mc-auth.cjs');
+      setActiveAccount(args[acctIdx + 1]);
+    }
+    setTimeout(() => {
+      launchGame(versionId, mainWindow).catch(() => {});
+    }, 2500); // wait for window ready
+  }
 });
 
 // Global error logging
@@ -353,3 +371,23 @@ ipcMain.handle('mc:openUpdateFolder', async () => {
 ipcMain.handle('mc:getErrorLog', async () => getErrorLog());
 ipcMain.handle('mc:clearErrorLog', async () => clearErrorLog());
 ipcMain.handle('mc:importMinecraftFolder', async (_e, folderPath) => importMinecraftFolder(folderPath));
+
+// v2.5 features
+ipcMain.handle('mc:getCrashDetail', async (_e, file) => getCrashDetail(file));
+ipcMain.handle('mc:scanJava', async () => scanJava());
+ipcMain.handle('mc:recommendedJava', async (_e, mcVersion) => recommendedJavaMajor(mcVersion));
+ipcMain.handle('mc:runDiagnostics', async () => runDiagnostics());
+ipcMain.handle('mc:autoSelectSource', async () => autoSelectSource());
+ipcMain.handle('mc:getPlayTime', async () => {
+  const s = loadSettings();
+  return s.playTime || {};
+});
+ipcMain.handle('mc:getDownloadStats', async () => {
+  const { getDownloadStats } = require('./mc-downloads.cjs');
+  return getDownloadStats();
+});
+ipcMain.handle('mc:savePresets', async (_e, presets) => saveSettings({ launchPresets: presets }));
+ipcMain.handle('mc:getInstanceIcon', async (_e, versionId) => getInstanceIcon(versionId));
+ipcMain.handle('mc:setInstanceIcon', async (_e, versionId, iconPath) => setInstanceIcon(versionId, iconPath));
+ipcMain.handle('mc:setBgImage', async (_e, path) => saveSettings({ bgImage: path }));
+ipcMain.handle('mc:getBgImage', async () => (loadSettings()).bgImage || '');
