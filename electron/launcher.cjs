@@ -308,6 +308,40 @@ function launchGame(versionId, mainWindow) {
         saveSettings({ lastPlayed });
       } catch {}
 
+      // Game process monitor: poll memory (Windows tasklist) + parse FPS from logs
+      const monitorInterval = setInterval(() => {
+        try {
+          const { exec } = require('child_process');
+          exec(`tasklist /FI "PID eq ${child.pid}" /FO CSV /NH`, (err, stdout) => {
+            if (err || !stdout) return;
+            const m = stdout.match(/"([\d,]+) K"/);
+            if (m) {
+              const memMB = Math.round(parseInt(m[1].replace(/,/g, '')) / 1024);
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('mc:gameStats', { type: 'memory', value: memMB });
+              }
+            }
+          });
+        } catch {}
+      }, 2000);
+      let lastFps = 0;
+      const logLineHandler = (line) => {
+        let m = line.match(fpsRegex) || line.match(fpsRegex2);
+        if (m) {
+          lastFps = Math.round(parseFloat(m[1]));
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('mc:gameStats', { type: 'fps', value: lastFps });
+          }
+        }
+      };
+      let pending = '';
+      const parseLog = (chunk) => {
+        pending += chunk;
+        const lines = pending.split('\n');
+        pending = lines.pop() || '';
+        for (const l of lines) logLineHandler(l);
+      };
+
       // Auto-close launcher when game starts
       if (settings.autoClose && mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.close();
@@ -316,19 +350,24 @@ function launchGame(versionId, mainWindow) {
       let gameClosed = false;
 
       child.stdout?.on('data', (data) => {
+        const text = data.toString();
+        parseLog(text);
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('mc:gameLog', data.toString());
+          mainWindow.webContents.send('mc:gameLog', text);
         }
       });
 
       child.stderr?.on('data', (data) => {
+        const text = data.toString();
+        parseLog(text);
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('mc:gameLog', data.toString());
+          mainWindow.webContents.send('mc:gameLog', text);
         }
       });
 
       child.on('close', (code) => {
         gameClosed = true;
+        clearInterval(monitorInterval);
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('mc:gameClosed', code);
         }

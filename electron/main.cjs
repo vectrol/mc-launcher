@@ -18,7 +18,7 @@ const { getScreenshots, deleteScreenshot, getScreenshotBase64, openScreenshotsFo
 const { getModrinthDependencies, checkModUpdates, getModrinthVersionFile } = require('./mc-online.cjs');
 const { toggleMod } = require('./mc-versions.cjs');
 const { startBroadcast, stopBroadcast, startLanScanner, getFriends, addFriend, removeFriend, getSnapshot } = require('./mc-friends.cjs');
-const { checkModsForUpdates, detectModConflicts } = require('./mc-modtools.cjs');
+const { checkModsForUpdates, detectModConflicts, updateAllMods } = require('./mc-modtools.cjs');
 const { searchCurseForge, getCurseForgeFiles } = require('./mc-online.cjs');
 const { logError, getErrorLog, clearErrorLog, checkForUpdates, downloadUpdate, importMinecraftFolder } = require('./mc-update.cjs');
 
@@ -328,6 +328,11 @@ ipcMain.handle('mc:resolveInviteCode', async (_e, code) => {
 // Mod tools
 ipcMain.handle('mc:checkModsForUpdates', async (_e, versionId) => checkModsForUpdates(versionId));
 ipcMain.handle('mc:detectModConflicts', async (_e, versionId) => detectModConflicts(versionId));
+ipcMain.handle('mc:updateAllMods', async (_e, versionId) => {
+  return await updateAllMods(versionId, (p) => {
+    mainWindow?.webContents.send('mc:updateAllProgress', p);
+  });
+});
 
 // CurseForge
 ipcMain.handle('mc:searchCurseForge', async (_e, query, gameVersion) => searchCurseForge(query, gameVersion));

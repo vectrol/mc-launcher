@@ -307,6 +307,8 @@ interface ElectronAPI {
     resolveInviteCode: (code: string) => Promise<{ success: boolean; ip?: string; username?: string; error?: string; friends?: any[] }>;
     checkModsForUpdates: (versionId: string) => Promise<any[]>;
     detectModConflicts: (versionId: string) => Promise<{ base: string; files: string[] }[]>;
+    updateAllMods: (versionId: string) => Promise<{ updated: number; failed: number; backupDir: string }>;
+    onGameStats: (cb: (data: { type: 'fps' | 'memory'; value: number }) => void) => void;
     searchCurseForge: (query: string, gameVersion?: string) => Promise<any[]>;
     getCurseForgeFiles: (modId: string, gameVersion?: string) => Promise<any[]>;
     checkForUpdates: () => Promise<{ hasUpdate: boolean; current: string; latest?: string; notes?: string; url?: string; assets?: { name: string; url: string; size: number }[] }>;

@@ -92,4 +92,49 @@ function detectModConflicts(versionId) {
   return conflicts;
 }
 
-module.exports = { checkModsForUpdates, detectModConflicts };
+// ─── Batch mod update with backup ──────────────────────────
+// Download latest for all updateable mods, backup originals first
+
+async function updateAllMods(versionId, onProgress) {
+  const fs = require('fs');
+  const path = require('path');
+  const modsDir = path.join(VERSIONS_DIR, versionId, 'mods');
+  const backupDir = path.join(VERSIONS_DIR, versionId, 'mods-backup');
+  if (!fs.existsSync(modsDir)) return { updated: 0, failed: 0 };
+
+  const updates = await checkModsForUpdates(versionId);
+  const toUpdate = updates.filter(u => u.hasUpdate && u.latestFile);
+  let updated = 0, failed = 0;
+
+  if (toUpdate.length === 0) return { updated: 0, failed: 0 };
+
+  // Backup originals
+  if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const backupSub = path.join(backupDir, stamp);
+  fs.mkdirSync(backupSub, { recursive: true });
+  for (const u of toUpdate) {
+    const src = path.join(modsDir, u.fileName);
+    if (fs.existsSync(src)) {
+      try { fs.copyFileSync(src, path.join(backupSub, u.fileName)); } catch {}
+    }
+  }
+
+  for (let i = 0; i < toUpdate.length; i++) {
+    const u = toUpdate[i];
+    onProgress({ current: i + 1, total: toUpdate.length, name: u.name, percent: Math.round(((i) / toUpdate.length) * 100) });
+    try {
+      const dest = path.join(modsDir, u.latestFile.name);
+      const { downloadFile } = require('./mc-downloads.cjs');
+      await downloadFile(u.latestFile.url, dest);
+      // Remove old version
+      const old = path.join(modsDir, u.fileName);
+      if (old !== dest && fs.existsSync(old)) fs.unlinkSync(old);
+      updated++;
+    } catch { failed++; }
+  }
+  onProgress({ current: toUpdate.length, total: toUpdate.length, name: '', percent: 100 });
+  return { updated, failed, backupDir: backupSub };
+}
+
+module.exports = { checkModsForUpdates, detectModConflicts, updateAllMods };

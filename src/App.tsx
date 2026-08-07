@@ -14,6 +14,7 @@ import ServerList from './components/ServerList';
 import SplashOverlay from './components/SplashOverlay';
 import DownloadQueuePanel from './components/DownloadQueuePanel';
 import FriendPanel from './components/FriendPanel';
+import GameMonitor from './components/GameMonitor';
 import { ToastProvider, useToast } from './components/Toast';
 import { VersionManifest, DownloadProgress, InstalledVersion, AccountInfo } from './types';
 import { translations, Lang, formatT } from './i18n';
@@ -347,6 +348,9 @@ function LauncherApp() {
 
       {/* Download Queue */}
       <DownloadQueuePanel t={t} />
+
+      {/* Game FPS/Memory monitor */}
+      <GameMonitor t={t} />
 
       {/* Download Panel */}
       <AnimatePresence>

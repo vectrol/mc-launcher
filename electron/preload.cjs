@@ -103,6 +103,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     resolveInviteCode: (code) => ipcRenderer.invoke('mc:resolveInviteCode', code),
     checkModsForUpdates: (versionId) => ipcRenderer.invoke('mc:checkModsForUpdates', versionId),
     detectModConflicts: (versionId) => ipcRenderer.invoke('mc:detectModConflicts', versionId),
+    updateAllMods: (versionId) => ipcRenderer.invoke('mc:updateAllMods', versionId),
+    onGameStats: (callback) => {
+      ipcRenderer.on('mc:gameStats', (_e, data) => callback(data));
+    },
     searchCurseForge: (query, gameVersion) => ipcRenderer.invoke('mc:searchCurseForge', query, gameVersion),
     getCurseForgeFiles: (modId, gameVersion) => ipcRenderer.invoke('mc:getCurseForgeFiles', modId, gameVersion),
     checkForUpdates: () => ipcRenderer.invoke('mc:checkForUpdates'),
