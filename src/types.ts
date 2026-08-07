@@ -309,7 +309,10 @@ interface ElectronAPI {
     detectModConflicts: (versionId: string) => Promise<{ base: string; files: string[] }[]>;
     searchCurseForge: (query: string, gameVersion?: string) => Promise<any[]>;
     getCurseForgeFiles: (modId: string, gameVersion?: string) => Promise<any[]>;
-    checkForUpdates: () => Promise<{ hasUpdate: boolean; current: string; latest?: string; notes?: string; url?: string }>;
+    checkForUpdates: () => Promise<{ hasUpdate: boolean; current: string; latest?: string; notes?: string; url?: string; assets?: { name: string; url: string; size: number }[] }>;
+    downloadUpdate: () => Promise<{ success: boolean }>;
+    openUpdateFolder: () => Promise<void>;
+    onUpdateProgress: (cb: (data: { percent: number; downloaded: number; total: number }) => void) => void;
     getErrorLog: () => Promise<string>;
     clearErrorLog: () => Promise<void>;
     importMinecraftFolder: (folderPath: string) => Promise<{ success: boolean; name: string; mcVersion: string }>;

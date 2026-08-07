@@ -20,7 +20,7 @@ const { toggleMod } = require('./mc-versions.cjs');
 const { startBroadcast, stopBroadcast, startLanScanner, getFriends, addFriend, removeFriend, getSnapshot } = require('./mc-friends.cjs');
 const { checkModsForUpdates, detectModConflicts } = require('./mc-modtools.cjs');
 const { searchCurseForge, getCurseForgeFiles } = require('./mc-online.cjs');
-const { logError, getErrorLog, clearErrorLog, checkForUpdates, importMinecraftFolder } = require('./mc-update.cjs');
+const { logError, getErrorLog, clearErrorLog, checkForUpdates, downloadUpdate, importMinecraftFolder } = require('./mc-update.cjs');
 
 let mainWindow = null;
 
@@ -335,6 +335,16 @@ ipcMain.handle('mc:getCurseForgeFiles', async (_e, modId, gameVersion) => getCur
 
 // Update & logs & import
 ipcMain.handle('mc:checkForUpdates', async () => checkForUpdates());
+ipcMain.handle('mc:downloadUpdate', async () => {
+  await downloadUpdate((p) => {
+    mainWindow?.webContents.send('mc:updateProgress', p);
+  });
+  return { success: true };
+});
+ipcMain.handle('mc:openUpdateFolder', async () => {
+  const { shell } = require('electron');
+  shell.openPath(path.join(app.getPath('userData'), 'updates'));
+});
 ipcMain.handle('mc:getErrorLog', async () => getErrorLog());
 ipcMain.handle('mc:clearErrorLog', async () => clearErrorLog());
 ipcMain.handle('mc:importMinecraftFolder', async (_e, folderPath) => importMinecraftFolder(folderPath));

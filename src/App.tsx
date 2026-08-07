@@ -89,6 +89,10 @@ function LauncherApp() {
     window.electronAPI.mc.checkNewVersion().then((r) => {
       if (r.hasNew) toast(t('notify.newVersion', r.latest), 'warning');
     }).catch(() => {});
+    // Check for launcher updates on startup (silent, toast if found)
+    window.electronAPI.mc.checkForUpdates().then((u) => {
+      if (u.hasUpdate) toast(t('notify.update', u.latest || ''), 'warning');
+    }).catch(() => {});
   }, []);
 
   async function loadSettings() {

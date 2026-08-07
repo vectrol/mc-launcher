@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Palette, Languages, Cpu, Settings2, Save, CheckCircle2, HelpCircle, Keyboard, FolderOpen, ExternalLink, Info, RefreshCw, Loader2, Terminal } from 'lucide-react';
+import { Palette, Languages, Cpu, Settings2, Save, CheckCircle2, HelpCircle, Keyboard, FolderOpen, ExternalLink, Info, RefreshCw, Loader2, Terminal, Download } from 'lucide-react';
 import { AppSettings } from '../types';
 import { Lang } from '../i18n';
 
@@ -34,6 +34,19 @@ export default function SettingsPanel({ t }: Props) {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [errorLog, setErrorLog] = useState('');
   const [showLog, setShowLog] = useState(false);
+  const [downloadingUpdate, setDownloadingUpdate] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState(0);
+  const [updateDownloaded, setUpdateDownloaded] = useState(false);
+
+  async function handleDownloadUpdate() {
+    setDownloadingUpdate(true); setUpdateProgress(0); setUpdateDownloaded(false);
+    window.electronAPI.mc.onUpdateProgress((p) => setUpdateProgress(p.percent));
+    try {
+      await window.electronAPI.mc.downloadUpdate();
+      setUpdateDownloaded(true); setUpdateProgress(100);
+    } catch {}
+    setDownloadingUpdate(false);
+  }
 
   useEffect(() => { loadSettings(); }, []);
 
@@ -334,10 +347,30 @@ export default function SettingsPanel({ t }: Props) {
                     {t('help.checkUpdate')}
                   </button>
                   {updateInfo?.hasUpdate && (
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <p className="text-[11px] text-mc-orange">{t('help.newVersion')} v{updateInfo.latest} ({t('help.current')} v{updateInfo.current})</p>
                       <p className="text-[10px] text-mc-muted line-clamp-2">{updateInfo.notes}</p>
-                      <a href={updateInfo.url} target="_blank" className="text-[10px] text-mc-accent-hover hover:underline">{t('help.downloadUpdate')} →</a>
+                      <div className="flex items-center gap-2">
+                        <button onClick={handleDownloadUpdate} disabled={downloadingUpdate}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-mc-accent text-white text-[11px] font-medium hover:bg-mc-accent-hover transition-all disabled:opacity-50">
+                          {downloadingUpdate ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
+                          {downloadingUpdate ? `${updateProgress}%` : t('help.downloadUpdate')}
+                        </button>
+                        <a href={updateInfo.url} target="_blank" className="text-[10px] text-mc-accent-hover hover:underline">{t('help.releasePage')} →</a>
+                      </div>
+                      {downloadingUpdate && (
+                        <div className="h-1.5 rounded-full bg-mc-surface overflow-hidden">
+                          <motion.div className="h-full rounded-full bg-gradient-to-r from-mc-accent to-purple-500"
+                            animate={{ width: `${updateProgress}%` }} transition={{ duration: 0.3 }} />
+                        </div>
+                      )}
+                      {updateDownloaded && (
+                        <div className="flex items-center gap-2 text-[10px] text-mc-green">
+                          <CheckCircle2 size={11} /> {t('help.updateDownloaded')}
+                          <button onClick={() => window.electronAPI.mc.openUpdateFolder()}
+                            className="text-mc-accent-hover hover:underline">{t('help.openFolder')}</button>
+                        </div>
+                      )}
                     </div>
                   )}
                   <button onClick={async () => { setErrorLog(await window.electronAPI.mc.getErrorLog()); setShowLog(!showLog); }}

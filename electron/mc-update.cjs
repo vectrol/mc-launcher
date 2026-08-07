@@ -26,36 +26,102 @@ function clearErrorLog() {
 }
 
 // ─── Self update check ─────────────────────────────────────
-// Checks a GitHub repo releases (configurable via env var for demo)
+// Checks own GitHub repo releases for new versions
 
-const UPDATE_REPO = process.env.MC_UPDATE_REPO || 'yushijinhun/authlib-injector'; // placeholder
-const LOCAL_VERSION = '3.0.0';
+const UPDATE_REPO = process.env.MC_UPDATE_REPO || 'vectrol/mc-launcher';
+
+function getLocalVersion() {
+  try {
+    const pkg = require('../package.json');
+    return pkg.version || '2.0.0';
+  } catch { return '2.0.0'; }
+}
+
+function githubGet(url) {
+  return new Promise((resolve, reject) => {
+    const https = require('https');
+    https.get(url, { headers: { 'User-Agent': 'MCLauncher', 'Accept': 'application/vnd.github+json' } }, (res) => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => {
+        if (res.statusCode >= 400) return reject(new Error(`HTTP ${res.statusCode}`));
+        try { resolve(JSON.parse(d)); } catch { reject(new Error('parse')); }
+      });
+    }).on('error', reject);
+  });
+}
+
+// Version compare: "2.0.0" vs "2.1.0" -> -1
+function compareVersions(a, b) {
+  const pa = a.replace(/^v/, '').split('.').map(Number);
+  const pb = b.replace(/^v/, '').split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x !== y) return x - y;
+  }
+  return 0;
+}
 
 async function checkForUpdates() {
+  const local = getLocalVersion();
   try {
-    const https = require('https');
-    const url = `https://api.github.com/repos/${UPDATE_REPO}/releases/latest`;
-    const data = await new Promise((resolve, reject) => {
-      https.get(url, { headers: { 'User-Agent': 'MCLauncher' } }, (res) => {
-        let d = '';
-        res.on('data', c => d += c);
-        res.on('end', () => { try { resolve(JSON.parse(d)); } catch { reject(new Error('parse')); } });
-      }).on('error', reject);
-    });
+    const data = await githubGet(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`);
     const remote = (data.tag_name || '').replace(/^v/, '');
-    if (remote && remote !== LOCAL_VERSION) {
+    if (remote && compareVersions(remote, local) > 0) {
       return {
         hasUpdate: true,
-        current: LOCAL_VERSION,
+        current: local,
         latest: remote,
-        notes: data.body?.slice(0, 500) || '',
+        notes: (data.body || '').slice(0, 500),
         url: data.html_url,
+        assets: (data.assets || []).map(a => ({ name: a.name, url: a.browser_download_url, size: a.size })),
       };
     }
-    return { hasUpdate: false, current: LOCAL_VERSION };
+    return { hasUpdate: false, current: local };
   } catch {
-    return { hasUpdate: false, current: LOCAL_VERSION };
+    return { hasUpdate: false, current: local };
   }
+}
+
+// Download the latest release asset (installer) to userData
+async function downloadUpdate(onProgress) {
+  const info = await checkForUpdates();
+  if (!info.hasUpdate || info.assets.length === 0) {
+    throw new Error('No update available');
+  }
+  // Prefer the setup .exe asset
+  const asset = info.assets.find(a => /setup.*\.exe$/i.test(a.name)) || info.assets[0];
+  const destDir = path.join(app.getPath('userData'), 'updates');
+  if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+  const destPath = path.join(destDir, asset.name);
+
+  return new Promise((resolve, reject) => {
+    const https = require('https');
+    https.get(asset.url, { headers: { 'User-Agent': 'MCLauncher' } }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        // Follow GitHub redirect to objects.githubusercontent.com
+        https.get(res.headers.location, (res2) => {
+          const total = parseInt(res2.headers['content-length'], 10) || 0;
+          let done = 0;
+          const ws = fs.createWriteStream(destPath);
+          res2.on('data', c => {
+            done += c.length;
+            ws.write(c);
+            if (onProgress && total > 0) onProgress({ percent: Math.round((done / total) * 100), downloaded: done, total });
+          });
+          res2.on('end', () => { ws.end(); resolve({ path: destPath, name: asset.name, info }); });
+          res2.on('error', reject);
+        }).on('error', reject);
+        return;
+      }
+      const total = parseInt(res.headers['content-length'], 10) || 0;
+      let done = 0;
+      const ws = fs.createWriteStream(destPath);
+      res.on('data', c => { done += c.length; ws.write(c); if (onProgress && total > 0) onProgress({ percent: Math.round((done / total) * 100), downloaded: done, total }); });
+      res.on('end', () => { ws.end(); resolve({ path: destPath, name: asset.name, info }); });
+      res.on('error', reject);
+    }).on('error', reject);
+  });
 }
 
 // ─── Instance import wizard ────────────────────────────────
@@ -92,4 +158,4 @@ function importMinecraftFolder(folderPath) {
   return { success: true, name: `${baseName}-import`, mcVersion };
 }
 
-module.exports = { logError, getErrorLog, clearErrorLog, checkForUpdates, importMinecraftFolder };
+module.exports = { logError, getErrorLog, clearErrorLog, checkForUpdates, downloadUpdate, importMinecraftFolder };
