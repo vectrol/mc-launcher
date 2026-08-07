@@ -95,7 +95,7 @@ export default function SettingsPanel({ t }: Props) {
                       {(['dark', 'light'] as const).map((th) => (
                         <motion.button key={th} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => handleSave({ theme: th })}
                           className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${settings.theme === th ? 'bg-mc-accent/15 text-mc-accent-hover border-mc-accent/30' : 'bg-mc-card border-mc-border text-mc-muted hover:text-mc-text'}`}>
-                          <span className="mr-1.5">{th === 'dark' ? '🌙' : '☀�?}</span>{t(`settings.theme${th === 'dark' ? 'Dark' : 'Light'}`)}
+                          <span className="mr-1.5">{th === 'dark' ? '🌙' : '☀️'}</span>{t(`settings.theme${th === 'dark' ? 'Dark' : 'Light'}`)}
                         </motion.button>
                       ))}
                     </div>
@@ -237,7 +237,7 @@ export default function SettingsPanel({ t }: Props) {
               <div>
                 <label className="text-xs text-mc-muted uppercase tracking-widest block mb-2">{t('settings.curseforge')}</label>
                 <input type="password" value={settings.curseforgeKey} onChange={(e) => handleSave({ curseforgeKey: e.target.value })}
-                  placeholder="CurseForge API Key (可�?"
+                  placeholder="CurseForge API Key (可选)"
                   className="w-full bg-mc-card border border-mc-border rounded-xl px-4 py-2.5 text-sm text-mc-text placeholder-mc-muted outline-none focus:border-mc-accent/50 transition-colors font-mono" />
               </div>
 
@@ -305,7 +305,7 @@ export default function SettingsPanel({ t }: Props) {
               <div>
                 <h3 className="flex items-center gap-2 text-sm font-semibold mb-3 text-mc-accent-hover"><Info size={16} /> {t('help.about')}</h3>
                 <div className="p-4 rounded-xl bg-mc-card/30 border border-mc-border/30 space-y-2 text-xs">
-                  <div className="flex items-center justify-between"><span className="text-mc-muted">{t('help.version')}</span><span className="font-mono text-mc-text">MC Launcher v1.0</span></div>
+                  <div className="flex items-center justify-between"><span className="text-mc-muted">{t('help.version')}</span><span className="font-mono text-mc-text">MC Launcher v2.0</span></div>
                   <div className="flex items-center justify-between"><span className="text-mc-muted">{t('help.dataDir')}</span><span className="font-mono text-mc-muted text-[10px] truncate max-w-[200px]">%APPDATA%/mc-launcher</span></div>
                   <div className="flex gap-2 pt-2">
                     <button onClick={() => window.electronAPI.mc.openFolder()}
@@ -337,7 +337,7 @@ export default function SettingsPanel({ t }: Props) {
                     <div className="space-y-1.5">
                       <p className="text-[11px] text-mc-orange">{t('help.newVersion')} v{updateInfo.latest} ({t('help.current')} v{updateInfo.current})</p>
                       <p className="text-[10px] text-mc-muted line-clamp-2">{updateInfo.notes}</p>
-                      <a href={updateInfo.url} target="_blank" className="text-[10px] text-mc-accent-hover hover:underline">{t('help.downloadUpdate')} �?/a>
+                      <a href={updateInfo.url} target="_blank" className="text-[10px] text-mc-accent-hover hover:underline">{t('help.downloadUpdate')} →</a>
                     </div>
                   )}
                   <button onClick={async () => { setErrorLog(await window.electronAPI.mc.getErrorLog()); setShowLog(!showLog); }}

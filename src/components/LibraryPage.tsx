@@ -1,6 +1,6 @@
 import { useState, useEffect, DragEvent, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Trash2, Package, FolderOpen, Loader2, Puzzle, ChevronDown, Image, HardDrive, Archive, Download, Power, Copy, Pencil, Settings as SettingsIcon, X, RefreshCw } from 'lucide-react';
+import { Play, Trash2, Package, FolderOpen, FolderInput, Loader2, Puzzle, ChevronDown, Image, HardDrive, Archive, Download, Power, Copy, Pencil, Settings as SettingsIcon, X, RefreshCw } from 'lucide-react';
 import { InstalledVersion, ModInfo, WorldInfo, ResourcePackInfo } from '../types';
 
 interface Props {
@@ -48,10 +48,22 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
           <h2 className="text-lg font-semibold">{t('library.title')}</h2>
           <p className="text-xs text-mc-muted">{versions.length} {t('installed.count')}</p>
         </div>
-        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => window.electronAPI.mc.openFolder()}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-mc-border hover:border-mc-accent/40 text-sm text-mc-muted hover:text-mc-text transition-all">
-          <FolderOpen size={14} /> {t('installed.openFolder')}
-        </motion.button>
+        <div className="flex gap-2">
+          <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+            onClick={async () => {
+              const folder = prompt(t('library.importHint'));
+              if (folder) {
+                try { await window.electronAPI.mc.importMinecraftFolder(folder); await loadVersions(); } catch {}
+              }
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-mc-border hover:border-mc-accent/40 text-sm text-mc-muted hover:text-mc-text transition-all">
+            <FolderInput size={14} /> {t('library.import')}
+          </motion.button>
+          <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => window.electronAPI.mc.openFolder()}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-mc-border hover:border-mc-accent/40 text-sm text-mc-muted hover:text-mc-text transition-all">
+            <FolderOpen size={14} /> {t('installed.openFolder')}
+          </motion.button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">

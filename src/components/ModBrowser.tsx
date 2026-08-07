@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Download, Loader2, ExternalLink, Sparkles, Package, Puzzle, Sun, Palette, Boxes, Star } from 'lucide-react';
+import { Search, Download, Loader2, ExternalLink, Sparkles, Package, Puzzle, Sun, Palette, Boxes, Star, Dices } from 'lucide-react';
 import { ModrinthMod, InstalledVersion } from '../types';
 
-type ResourceType = 'mod' | 'shader' | 'resourcepack' | 'modpack';
+type ResourceType = 'mod' | 'shader' | 'resourcepack' | 'modpack' | 'curseforge';
 
 interface Props {
   installedList: InstalledVersion[];
@@ -15,6 +15,7 @@ const TYPES: { id: ResourceType; label: string; icon: any }[] = [
   { id: 'shader', label: '市场.shaders', icon: Sun },
   { id: 'resourcepack', label: '市场.rpacks', icon: Palette },
   { id: 'modpack', label: '市场.modpacks', icon: Boxes },
+  { id: 'curseforge', label: '市场.curse', icon: Dices },
 ];
 
 export default function ModBrowser({ installedList, t }: Props) {
@@ -50,6 +51,11 @@ export default function ModBrowser({ installedList, t }: Props) {
   async function loadPopular() {
     try {
       setLoading(true); setError(null);
+      if (type === 'curseforge') {
+        // CurseForge has no "popular" endpoint without query; show empty state with hint
+        setPopular([]);
+        return;
+      }
       const data = await window.electronAPI.mc.getModrinthPopular(type);
       setPopular(data.hits || []);
     } catch { setError(t('common.loading')); }
@@ -60,9 +66,17 @@ export default function ModBrowser({ installedList, t }: Props) {
     if (!query.trim()) return loadPopular();
     try {
       setSearching(true); setError(null);
-      const data = await window.electronAPI.mc.searchModrinth(query, 0, type);
-      setResults(data.hits || []);
-    } catch { setError(t('common.loading')); }
+      if (type === 'curseforge') {
+        const data = await window.electronAPI.mc.searchCurseForge(query);
+        setResults(data || []);
+      } else {
+        const data = await window.electronAPI.mc.searchModrinth(query, 0, type);
+        setResults(data.hits || []);
+      }
+    } catch (e: any) {
+      setError(e.message === 'NO_API_KEY' ? t('market.needKey') : t('common.loading'));
+      setResults([]);
+    }
     finally { setSearching(false); }
   }
 
@@ -77,7 +91,12 @@ export default function ModBrowser({ installedList, t }: Props) {
     if (!selectedMod || !targetVersion) return;
     try {
       setVersionsLoading(true);
-      const vers = await window.electronAPI.mc.getModrinthVersions(selectedMod.slug, targetVersion, type);
+      let vers: any[];
+      if (type === 'curseforge') {
+        vers = await window.electronAPI.mc.getCurseForgeFiles(String(selectedMod.id), targetVersion);
+      } else {
+        vers = await window.electronAPI.mc.getModrinthVersions(selectedMod.slug, targetVersion, type);
+      }
       setModVersions(vers);
       setShowInstall(true);
     } catch {} finally { setVersionsLoading(false); }
@@ -213,9 +232,9 @@ export default function ModBrowser({ installedList, t }: Props) {
               )}
             </div>
 
-            <a href={`https://modrinth.com/${type === 'mod' ? 'mod' : type === 'shader' ? 'shader' : type === 'resourcepack' ? 'resourcepack' : 'modpack'}/${selectedMod.slug}`} target="_blank"
+            <a href={type === 'curseforge' ? `https://www.curseforge.com/minecraft/mc-mods/${selectedMod.slug}` : `https://modrinth.com/${type === 'mod' ? 'mod' : type === 'shader' ? 'shader' : type === 'resourcepack' ? 'resourcepack' : 'modpack'}/${selectedMod.slug}`} target="_blank"
               className="flex items-center gap-1 text-xs text-mc-accent-hover hover:underline">
-              <ExternalLink size={11} /> View on Modrinth
+              <ExternalLink size={11} /> {type === 'curseforge' ? 'View on CurseForge' : 'View on Modrinth'}
             </a>
           </div>
         ) : loading ? (
@@ -248,7 +267,7 @@ export default function ModBrowser({ installedList, t }: Props) {
               ))}
             </div>
             {displayMods.length === 0 && !loading && (
-              <div className="text-center py-12"><Package size={36} className="text-mc-border mx-auto" /><p className="text-sm text-mc-muted mt-2">{t('versions.empty')}</p></div>
+              <div className="text-center py-12"><Package size={36} className="text-mc-border mx-auto" /><p className="text-sm text-mc-muted mt-2">{type === 'curseforge' ? t('market.curseHint') : t('versions.empty')}</p></div>
             )}
           </>
         )}

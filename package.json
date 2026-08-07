@@ -1,6 +1,6 @@
 {
   "name": "mc-launcher",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "description": "Minecraft Third-Party Launcher",
   "main": "electron/main.cjs",
@@ -36,10 +36,22 @@
   "build": {
     "appId": "com.mclauncher.app",
     "productName": "MC Launcher",
-    "directories": { "output": "release" },
-    "files": ["dist/**/*", "electron/**/*"],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "build/icon.ico"
     },
     "nsis": {

@@ -259,7 +259,7 @@ function launchGame(versionId, mainWindow) {
         arg
           .replace(/\$\{natives_directory\}/g, nativesDir)
           .replace(/\$\{launcher_name\}/g, 'mc-launcher')
-          .replace(/\$\{launcher_version\}/g, '1.0.0')
+          .replace(/\$\{launcher_version\}/g, '2.0.0')
           .replace(/\$\{path\}/g, log4jPath || '')
           .replace(/\$\{classpath\}/g, '')
           .replace(/\$\{assets_root\}/g, ASSETS_DIR)
@@ -276,7 +276,7 @@ function launchGame(versionId, mainWindow) {
         '-Dfml.ignorePatchDiscrepancies=true',
         `-Djava.library.path=${nativesDir}`,
         '-Dminecraft.launcher.brand=mc-launcher',
-        '-Dminecraft.launcher.version=1.0.0',
+        '-Dminecraft.launcher.version=2.0.0',
         ...(javaAgentArg ? [javaAgentArg] : []),
         ...customJvmArgs,
         ...cleanedJvmArgs,
