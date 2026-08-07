@@ -103,9 +103,12 @@ function LauncherApp() {
       const s = await window.electronAPI.mc.getSettings();
       setLang(s.language || 'zh-CN');
       document.documentElement.setAttribute('data-theme', s.theme || 'dark');
-      // Apply background image
+      // Apply background image (data URL or file path)
       if (s.bgImage) {
-        document.documentElement.style.setProperty('--mc-bg-image', `url("file:///${(s.bgImage as string).replace(/\\/g, '/')}")`);
+        const bg = s.bgImage.startsWith('data:')
+          ? `url("${s.bgImage}")`
+          : `url("file:///${(s.bgImage as string).replace(/\\/g, '/')}")`;
+        document.documentElement.style.setProperty('--mc-bg-image', bg);
       } else {
         document.documentElement.style.setProperty('--mc-bg-image', 'none');
       }

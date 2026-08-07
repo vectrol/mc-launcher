@@ -389,5 +389,16 @@ ipcMain.handle('mc:getDownloadStats', async () => {
 ipcMain.handle('mc:savePresets', async (_e, presets) => saveSettings({ launchPresets: presets }));
 ipcMain.handle('mc:getInstanceIcon', async (_e, versionId) => getInstanceIcon(versionId));
 ipcMain.handle('mc:setInstanceIcon', async (_e, versionId, iconPath) => setInstanceIcon(versionId, iconPath));
-ipcMain.handle('mc:setBgImage', async (_e, path) => saveSettings({ bgImage: path }));
+ipcMain.handle('mc:setBgImage', async (_e, pathOrData) => {
+  // Store data URL directly, or copy local file to userData
+  if (pathOrData && !pathOrData.startsWith('data:')) {
+    const { copyFileSync, existsSync } = require('fs');
+    const dest = path.join(app.getPath('userData'), 'launcher-bg.png');
+    if (existsSync(pathOrData)) {
+      copyFileSync(pathOrData, dest);
+      pathOrData = `data:image/png;base64,${require('fs').readFileSync(dest).toString('base64')}`;
+    }
+  }
+  saveSettings({ bgImage: pathOrData || '' });
+});
 ipcMain.handle('mc:getBgImage', async () => (loadSettings()).bgImage || '');

@@ -80,15 +80,29 @@ function setInstanceSettings(versionId, patch) {
   return s.instanceSettings[versionId];
 }
 
-function setInstanceIcon(versionId, iconPath) {
-  const src = iconPath;
-  if (!fs.existsSync(src)) throw new Error('Icon not found');
+function setInstanceIcon(versionId, iconPathOrData) {
+  // Support both: file path OR data URL (base64)
   const destDir = path.join(VERSIONS_DIR, versionId);
   ensureDir(destDir);
-  const ext = path.extname(src) || '.png';
+
+  let ext = '.png';
+  let buffer;
+
+  if (iconPathOrData && iconPathOrData.startsWith('data:')) {
+    // data:image/png;base64,XXXX
+    const m = iconPathOrData.match(/^data:image\/(png|jpe?g|gif);base64,(.+)$/i);
+    if (!m) throw new Error('Invalid image data');
+    ext = m[1].toLowerCase() === 'jpeg' ? '.jpg' : `.${m[1].toLowerCase()}`;
+    buffer = Buffer.from(m[2], 'base64');
+  } else {
+    const src = iconPathOrData;
+    if (!src || !fs.existsSync(src)) throw new Error('Icon not found');
+    ext = path.extname(src) || '.png';
+    buffer = fs.readFileSync(src);
+  }
+
   const dest = path.join(destDir, `instance-icon${ext}`);
-  fs.copyFileSync(src, dest);
-  // Store in instance settings for UI to read
+  fs.writeFileSync(dest, buffer);
   setInstanceSettings(versionId, { icon: `instance-icon${ext}` });
   return { success: true, icon: `instance-icon${ext}` };
 }

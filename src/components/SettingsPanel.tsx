@@ -163,9 +163,17 @@ export default function SettingsPanel({ t }: Props) {
                         onChange={async (e) => {
                           const f = e.target.files?.[0];
                           if (f) {
-                            await window.electronAPI.mc.setBgImage((f as any).path);
-                            document.documentElement.style.setProperty('--mc-bg-image', `url("file:///${((f as any).path as string).replace(/\\/g, '/')}")`);
-                            const s = await window.electronAPI.mc.getSettings(); setSettings(s);
+                            try {
+                              const dataUrl = await new Promise<string>((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onload = () => resolve(reader.result as string);
+                                reader.onerror = () => reject(new Error('read failed'));
+                                reader.readAsDataURL(f);
+                              });
+                              await window.electronAPI.mc.setBgImage(dataUrl);
+                              document.documentElement.style.setProperty('--mc-bg-image', `url("${dataUrl}")`);
+                              const s = await window.electronAPI.mc.getSettings(); setSettings(s);
+                            } catch {}
                           }
                           e.target.value = '';
                         }} />

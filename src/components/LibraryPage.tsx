@@ -47,7 +47,17 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
   async function handleIconFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (f && iconTarget) {
-      try { await window.electronAPI.mc.setInstanceIcon(iconTarget, (f as any).path); setIcons(prev => ({ ...prev, [iconTarget]: URL.createObjectURL(f) })); } catch {}
+      try {
+        // Read file as data URL (works regardless of file.path availability)
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('read failed'));
+          reader.readAsDataURL(f);
+        });
+        const r = await window.electronAPI.mc.setInstanceIcon(iconTarget, dataUrl);
+        if (r.success) setIcons(prev => ({ ...prev, [iconTarget]: dataUrl }));
+      } catch {}
     }
     setIconTarget('');
     if (iconRef.current) iconRef.current.value = '';
