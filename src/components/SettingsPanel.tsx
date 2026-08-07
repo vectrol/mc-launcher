@@ -87,6 +87,10 @@ export default function SettingsPanel({ t }: Props) {
       document.documentElement.style.setProperty('--mc-accent', updates.accentColor);
       document.documentElement.style.setProperty('--mc-accent-hover', adjustBrightness(updates.accentColor, 20));
     }
+    // Notify app to reload settings (language change re-renders all text)
+    if (updates.language || updates.theme || updates.bgImage !== undefined) {
+      window.dispatchEvent(new CustomEvent('mc:settings-changed'));
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -274,7 +278,7 @@ export default function SettingsPanel({ t }: Props) {
                   {(['mojang', 'bmclapi'] as const).map((src) => (
                     <motion.button key={src} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => handleSave({ downloadSource: src })}
                       className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${settings.downloadSource === src ? 'bg-mc-accent/15 text-mc-accent-hover border-mc-accent/30' : 'bg-mc-card border-mc-border text-mc-muted hover:text-mc-text'}`}>
-                      {src === 'mojang' ? 'Mojang' : 'BMCLAPI (镜像)'}
+                      {src === 'mojang' ? 'Mojang' : t('settings.bmclapi')}
                     </motion.button>
                   ))}
                   <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={handleAutoSource}
@@ -328,7 +332,7 @@ export default function SettingsPanel({ t }: Props) {
                   {(['official', 'kuvako'] as const).map((src) => (
                     <motion.button key={src} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => handleSave({ modrinthMirror: src })}
                       className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${settings.modrinthMirror === src ? 'bg-mc-accent/15 text-mc-accent-hover border-mc-accent/30' : 'bg-mc-card border-mc-border text-mc-muted hover:text-mc-text'}`}>
-                      {src === 'official' ? 'Modrinth 官方' : 'Kuvako 国内镜像'}
+                      {src === 'official' ? t('settings.mirrorOfficial') : t('settings.mirrorKuvako')}
                     </motion.button>
                   ))}
                 </div>
@@ -339,7 +343,7 @@ export default function SettingsPanel({ t }: Props) {
                 <div className="flex gap-2 items-center">
                   <input type="number" value={settings.bandwidthLimit} min="0" onChange={(e) => handleSave({ bandwidthLimit: e.target.value })}
                     className="flex-1 bg-mc-card border border-mc-border rounded-xl px-4 py-2.5 text-sm text-mc-text outline-none focus:border-mc-accent/50 transition-colors font-mono" />
-                  <span className="text-xs text-mc-muted shrink-0">KB/s (0 = 不限)</span>
+                  <span className="text-xs text-mc-muted shrink-0">{t('settings.kbpsHint')}</span>
                 </div>
               </div>
 
@@ -355,7 +359,7 @@ export default function SettingsPanel({ t }: Props) {
               <div>
                 <label className="text-xs text-mc-muted uppercase tracking-widest block mb-2">{t('settings.curseforge')}</label>
                 <input type="password" value={settings.curseforgeKey} onChange={(e) => handleSave({ curseforgeKey: e.target.value })}
-                  placeholder="CurseForge API Key (可选)"
+                  placeholder={t('settings.cfKeyHint')}
                   className="w-full bg-mc-card border border-mc-border rounded-xl px-4 py-2.5 text-sm text-mc-text placeholder-mc-muted outline-none focus:border-mc-accent/50 transition-colors font-mono" />
               </div>
 

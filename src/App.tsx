@@ -96,6 +96,10 @@ function LauncherApp() {
     window.electronAPI.mc.checkForUpdates().then((u) => {
       if (u.hasUpdate) toast(t('notify.update', u.latest || ''), 'warning');
     }).catch(() => {});
+    // Reload settings when changed (language switch etc.)
+    const handler = () => loadSettings();
+    window.addEventListener('mc:settings-changed', handler);
+    return () => window.removeEventListener('mc:settings-changed', handler);
   }, []);
 
   async function loadSettings() {

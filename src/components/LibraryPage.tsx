@@ -468,7 +468,7 @@ function VersionMods({ versionId, t }: { versionId: string; t: Props['t'] }) {
             </button>
             <button onClick={async (e) => { e.stopPropagation(); await window.electronAPI.mc.toggleMod(versionId, m.fileName); setMods(await window.electronAPI.mc.getMods(versionId)); }}
               className={`p-1 rounded transition-colors ${m.disabled ? 'text-mc-green hover:bg-mc-green/10' : 'text-mc-orange hover:bg-mc-orange/10'}`}
-              title={m.disabled ? 'Enable' : 'Disable'}>
+                              title={m.disabled ? t('mods.enable') : t('mods.disable')}>
               <Power size={10} />
             </button>
             <button onClick={async (e) => { e.stopPropagation(); await window.electronAPI.mc.deleteMod(versionId, m.fileName); setMods(mods.filter(x => x.fileName !== m.fileName)); }}
@@ -614,7 +614,7 @@ function InstanceSettings({ versionId, t }: { versionId: string; t: Props['t'] }
           <input type="text" value={inst.gameDir || ''} onChange={(e) => save({ gameDir: e.target.value })}
             placeholder={t('settings.gameDirHint')} className="flex-1 bg-mc-card/50 border border-mc-border/40 rounded-lg px-2 py-1.5 text-[11px] text-mc-text outline-none focus:border-mc-accent/40 font-mono" />
           <button onClick={async () => {
-            const dir = prompt('Game directory:');
+            const dir = prompt(t('settings.gameDir'));
             if (dir) { await window.electronAPI.mc.setCustomGameDir(versionId, dir); const s = await window.electronAPI.mc.getInstanceSettings(versionId); setInst(s); }
           }} className="px-2.5 py-1.5 rounded-lg bg-mc-card/50 border border-mc-border/40 text-[10px] text-mc-muted hover:text-mc-text transition-colors shrink-0">{t('settings.detect')}</button>
         </div>

@@ -121,7 +121,7 @@ export default function ModBrowser({ installedList, t }: Props) {
         }
         setError(null); setShowInstall(false); setSelectedMod(null);
       }
-      else { setError('Download failed'); }
+      else { setError(t('error.download')); }
     } catch (e: any) { setError(e.message); }
     finally { setInstallingMod(false); }
   }
