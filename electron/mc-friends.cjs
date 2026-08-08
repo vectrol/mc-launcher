@@ -165,11 +165,16 @@ module.exports = {
 
   resolveInviteCode(code) {
     try {
+      if (!code || typeof code !== 'string' || code.length < 8) throw new Error('bad code');
+      // Strict base64url validation (reject invalid chars)
+      if (!/^[A-Za-z0-9_-]+$/.test(code)) throw new Error('bad code');
       const decoded = Buffer.from(code, 'base64url').toString();
       const [ip, username] = decoded.split('|');
-      if (!ip) throw new Error('bad code');
-      const friends = addFriend(username || 'Friend', ip);
-      return { success: true, ip, username: username || 'Friend', friends };
+      // Validate IP: must be a plausible IPv4 (dotted quad) or hostname
+      if (!ip || !/^[\d.]+$/.test(ip)) throw new Error('bad ip');
+      if (!username || username.length > 32) throw new Error('bad user');
+      const friends = addFriend(username, ip);
+      return { success: true, ip, username, friends };
     } catch {
       return { success: false, error: 'Invalid invite code' };
     }

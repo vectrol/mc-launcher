@@ -1,5 +1,5 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+﻿import { motion, AnimatePresence } from 'framer-motion';
+
 
 interface Props {
   visible: boolean;

@@ -7,6 +7,10 @@
   "scripts": {
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "build": "vite build",
+    "test": "node tests/run-tests.cjs",
+    "lint": "eslint src electron --ext .ts,.tsx,.cjs",
+    "typecheck": "tsc --noEmit",
+    "ci": "tsc --noEmit && node tests/run-tests.cjs && vite build",
     "dist": "vite build && electron-builder",
     "start": "vite build && electron .",
     "electron": "electron ."
@@ -22,11 +26,15 @@
   "devDependencies": {
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@typescript-eslint/eslint-plugin": "^8.66.0",
+    "@typescript-eslint/parser": "^8.66.0",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.0",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
+    "eslint": "^10.8.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",

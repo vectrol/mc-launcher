@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Minus, Square, X, Maximize2, Minimize2 } from 'lucide-react';
+import { Minus, X, Maximize2, Minimize2 } from 'lucide-react';
 
 interface Props {
   t: (key: string) => string;
 }
 
-export default function TitleBar({ t }: Props) {
+export default function TitleBar(_: Props) {
   const [isMaxed, setIsMaxed] = useState(false);
 
   useEffect(() => {

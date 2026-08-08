@@ -17,7 +17,7 @@ interface Props {
 }
 
 export default function VersionBrowser({
-  manifest, loading, downloading, launching, installedVersions,
+  manifest, downloading, launching, installedVersions,
   downloadProgress, onInstall, onLaunch, t,
 }: Props) {
   const [search, setSearch] = useState('');
@@ -38,9 +38,6 @@ export default function VersionBrowser({
   }
 
   // Categorize versions
-  const latestReleaseId = manifest.latest.release;
-  const latestSnapshotId = manifest.latest.snapshot;
-
   const releases = manifest.versions.filter((v) => v.type === 'release');
   const snapshots = manifest.versions.filter((v) => v.type === 'snapshot');
   const oldBetas = manifest.versions.filter((v) => v.type === 'old_beta' || v.type === 'old_alpha');

@@ -86,8 +86,6 @@ function VersionCard({ version, index, isDownloading, isLaunching, isInstalled, 
     if (!expanded) { setVariant('vanilla'); setSelectedLoader(''); setLoaderVersions([]); }
   }
 
-  const isThisDownloading = isActive && progress && progress.phase !== 'done';
-
   return (
     <motion.div
       layout

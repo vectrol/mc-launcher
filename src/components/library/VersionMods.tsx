@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, DragEvent } from 'react';
+﻿import { useState, useEffect, useRef, DragEvent } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Loader2, Power, Trash2, RefreshCw, Star, CheckSquare, X, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Download, Loader2, Power, Trash2, RefreshCw, CheckSquare, X, AlertTriangle, ArrowRight } from 'lucide-react';
 import { ModInfo } from '../../types';
 
 interface Props {
@@ -121,13 +121,13 @@ export default function VersionMods({ versionId, t }: Props) {
         animate={{ borderColor: dragOver ? 'rgba(99,102,241,0.4)' : 'rgba(37,37,58,0.3)' }}
         className="border-2 border-dashed rounded-xl p-4 transition-all text-center cursor-pointer">
         {importing ? <Loader2 size={16} className="animate-spin text-mc-accent mx-auto" /> : <Download size={16} className="text-mc-muted mx-auto" />}
-        <p className="text-[10px] text-mc-muted mt-1">{dragOver ? t('mods.dropActive') : t('mods.dropHere')} · <button onClick={() => fileRef.current?.click()} className="text-mc-accent-hover underline">{t('mods.browse')}</button></p>
+        <p className="text-[10px] text-mc-muted mt-1">{dragOver ? t('mods.dropActive') : t('mods.dropHere')} 路 <button onClick={() => fileRef.current?.click()} className="text-mc-accent-hover underline">{t('mods.browse')}</button></p>
         <input ref={fileRef} type="file" accept=".jar" multiple className="hidden" onChange={handleBrowse} />
       </motion.div>
 
       {batchResult != null && batchResult > 0 && (
         <div className="p-2 rounded-xl bg-mc-green/10 border border-mc-green/25 text-[10px] text-mc-green">
-          {t('mods.updatedOk', batchResult)} — {t('mods.backupNote')}
+          {t('mods.updatedOk', batchResult)} 鈥?{t('mods.backupNote')}
         </div>
       )}
 
