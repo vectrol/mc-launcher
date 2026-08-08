@@ -68,14 +68,19 @@ async function scanJava() {
 
 // Recommended Java major for a Minecraft version
 function recommendedJavaMajor(mcVersion) {
-  const v = mcVersion.split('.');
+  if (!mcVersion) return 17;
+  // Extract MC version from loader IDs: fabric-loader-0.19.3-1.20.1 → 1.20.1
+  // Look for the "1.xx" segment, taking the last one
+  const segments = mcVersion.match(/\d+\.\d+(?:\.\d+)?/g) || [];
+  const mcSeg = segments.filter(s => s.startsWith('1.')).pop() || segments[0] || mcVersion;
+  const v = mcSeg.split('.');
   if (v.length < 2) return 17;
   const minor = parseInt(v[1]);
-  if (minor >= 21) return 21;   // 1.21+ needs Java 21
-  if (minor >= 20) return 17;   // 1.20 needs Java 17
-  if (minor >= 18) return 17;   // 1.18 needs Java 17
-  if (minor >= 17) return 16;   // 1.17 needs Java 16
-  if (minor >= 12) return 8;    // 1.12-1.16 Java 8
+  if (minor >= 21) return 21;
+  if (minor >= 20) return 17;
+  if (minor >= 18) return 17;
+  if (minor >= 17) return 16;
+  if (minor >= 12) return 8;
   return 8;
 }
 

@@ -10,29 +10,48 @@ function getLauncherVersion() {
 }
 
 function findJava(versionId) {
-  // Per-version Java override
+  // Load settings / instance overrides
+  const settings = loadSettings();
+  let explicitPath = null;
   if (versionId) {
     const { getInstanceSettings } = require('./mc-instances.cjs');
     const inst = getInstanceSettings(versionId);
-    if (inst.javaPath && fs.existsSync(inst.javaPath)) return inst.javaPath;
+    if (inst.javaPath && fs.existsSync(inst.javaPath)) explicitPath = inst.javaPath;
   }
-  const settings = loadSettings();
-  if (settings.javaPath && fs.existsSync(settings.javaPath)) {
-    return settings.javaPath;
+  if (!explicitPath && settings.javaPath && fs.existsSync(settings.javaPath)) {
+    explicitPath = settings.javaPath;
   }
-  // Auto-match installed JRE to MC version (most compatible)
-  if (versionId) {
-    const { recommendedJavaMajor } = require('./mc-java.cjs');
-    const wantMajor = recommendedJavaMajor(versionId);
-    const { getInstalledJres } = require('./mc-jre.cjs');
-    const jres = getInstalledJres();
-    if (jres.length > 0) {
-      // Prefer exact major match, else highest available
-      const exact = jres.find(j => j.name.includes(`-${wantMajor}.`) || j.name.includes(`jre-${wantMajor}`));
-      const pick = exact || jres[0];
-      if (pick.exists) return pick.path;
+
+  // Detect required Java major for THIS version (vs global override)
+  const { recommendedJavaMajor } = require('./mc-java.cjs');
+  const wantMajor = recommendedJavaMajor(versionId);
+
+  // If user set an explicit path, validate it matches the version requirement
+  if (explicitPath) {
+    const actualMajor = getJavaMajorSync(explicitPath);
+    if (actualMajor >= wantMajor) return explicitPath;
+    // Explicit path too old — warn but don't use (fall through to auto-detect)
+    if (versionId) {
+      const { getInstanceSettings } = require('./mc-instances.cjs');
+      const inst = getInstanceSettings(versionId);
+      if (inst.javaPath) logSend(null, `[Java] Instance override Java ${actualMajor} too old for MC ${versionId} (needs >=${wantMajor}), auto-detecting...`);
+      else logSend(null, `[Java] Global Java ${actualMajor} too old for MC ${versionId} (needs >=${wantMajor}), auto-detecting...`);
     }
   }
+
+  // Auto-detect best JRE
+  const { getInstalledJres } = require('./mc-jre.cjs');
+  const jres = getInstalledJres();
+  if (jres.length > 0) {
+    // Prefer exact major match, else highest >= required
+    const best = jres
+      .filter(j => j.major >= wantMajor)
+      .sort((a, b) => a.major - b.major) // closest to requirement
+      [0] || jres[jres.length - 1]; // fallback to highest
+    if (best && best.exists) return best.path;
+  }
+
+  // Last resort: JAVA_HOME
   const javaHome = process.env.JAVA_HOME;
   if (javaHome) {
     const exe = path.join(javaHome, 'bin', 'javaw.exe');
@@ -41,6 +60,23 @@ function findJava(versionId) {
     if (fs.existsSync(exe2)) return exe2;
   }
   return 'java';
+}
+
+function getJavaMajorSync(javaExe) {
+  try {
+    const { execSync } = require('child_process');
+    const out = execSync(`"${javaExe}" -version 2>&1`, { timeout: 5000, encoding: 'utf-8' });
+    const m = out.match(/version "([^"]+)"/);
+    if (m) {
+      const parts = m[1].split('.');
+      return parseInt(parts[0]) === 1 ? parseInt(parts[1]) : parseInt(parts[0]);
+    }
+  } catch {}
+  return 0;
+}
+
+function logSend(mainWindow, msg) {
+  if (mainWindow) mainWindow.webContents.send('mc:gameLog', msg + '\n');
 }
 
 // Check natives dir exists and has DLLs; if not, re-extract

@@ -13,7 +13,10 @@ function getInstalledJres() {
       const exe = path.join(dir, 'bin', 'javaw.exe');
       const javaExe = path.join(dir, 'bin', 'java.exe');
       const p = fs.existsSync(exe) ? exe : javaExe;
-      return { name, dir, path: p, exists: fs.existsSync(p) };
+      // Extract major version from directory name like "java-17" or "openjdk-21"
+      const majorMatch = name.match(/(\d+)/);
+      const major = majorMatch ? parseInt(majorMatch[1]) : (name.includes('jre') ? 0 : 0);
+      return { name, dir, path: p, exists: fs.existsSync(p), major };
     }).filter(j => j.exists);
   } catch { return []; }
 }
