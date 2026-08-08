@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Download, Loader2, ExternalLink, Sparkles, Package, Puzzle, Sun, Palette, Boxes, Star, Dices } from 'lucide-react';
+import { Search, Download, Loader2, ExternalLink, Sparkles, Package, Puzzle, Sun, Palette, Boxes, Star, Dices, Shield } from 'lucide-react';
 import { ModrinthMod, InstalledVersion } from '../types';
 
 type ResourceType = 'mod' | 'shader' | 'resourcepack' | 'modpack' | 'curseforge';
@@ -33,6 +33,9 @@ export default function ModBrowser({ installedList, t }: Props) {
   const [targetVersion, setTargetVersion] = useState('');
   const [installingMod, setInstallingMod] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<'downloads' | 'follows' | 'updated'>('downloads');
+  const [fullDetail, setFullDetail] = useState<any>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
     try { setFavorites(JSON.parse(localStorage.getItem('mc_favorites') || '[]')); } catch {}
@@ -47,6 +50,14 @@ export default function ModBrowser({ installedList, t }: Props) {
   }
 
   useEffect(() => { loadPopular(); }, [type]);
+
+  function sortMods(list: ModrinthMod[]) {
+    const arr = [...list];
+    if (sortBy === 'downloads') arr.sort((a, b) => b.downloads - a.downloads);
+    else if (sortBy === 'follows') arr.sort((a, b) => b.follows - a.follows);
+    else arr.sort((a, b) => new Date(b.updated || 0).getTime() - new Date(a.updated || 0).getTime());
+    return arr;
+  }
 
   async function loadPopular() {
     try {
@@ -85,6 +96,13 @@ export default function ModBrowser({ installedList, t }: Props) {
     setShowInstall(false);
     setModVersions([]);
     setTargetVersion('');
+    // Fetch full detail (body, gallery, license) for modrinth mods
+    if (mod.projectType !== 'curseforge') {
+      setDetailLoading(true);
+      window.electronAPI.mc.getModrinthMod(mod.slug).then((d) => setFullDetail(d)).catch(() => {}).finally(() => setDetailLoading(false));
+    } else {
+      setFullDetail(null);
+    }
   }
 
   async function handleInstallVersion() {
@@ -132,7 +150,7 @@ export default function ModBrowser({ installedList, t }: Props) {
     return n.toString();
   }
 
-  const displayMods = query ? results : popular;
+  const displayMods = sortMods(query ? results : popular);
   const currentTypeLabel = TYPES.find(x => x.id === type)?.label || '';
 
   return (
@@ -158,8 +176,14 @@ export default function ModBrowser({ installedList, t }: Props) {
               placeholder={t('modBrowser.search')}
               className="w-full bg-mc-card border border-mc-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-mc-text placeholder-mc-muted outline-none focus:border-mc-accent/50 transition-colors" />
           </div>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}
+            className="px-3 py-2.5 rounded-xl bg-mc-card border border-mc-border text-xs text-mc-muted outline-none shrink-0">
+            <option value="downloads">{t('market.sortDl')}</option>
+            <option value="follows">{t('market.sortFollows')}</option>
+            <option value="updated">{t('market.sortUpdated')}</option>
+          </select>
           <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={handleSearch} disabled={searching}
-            className="px-4 py-2.5 rounded-xl bg-mc-accent hover:bg-mc-accent-hover text-white text-sm font-medium transition-all disabled:opacity-50">
+            className="px-4 py-2.5 rounded-xl bg-mc-accent hover:bg-mc-accent-hover text-white text-sm font-medium transition-all disabled:opacity-50 shrink-0">
             {searching ? <Loader2 size={14} className="animate-spin" /> : t('filter.search')}
           </motion.button>
         </div>
@@ -177,6 +201,33 @@ export default function ModBrowser({ installedList, t }: Props) {
                 <p className="text-sm text-mc-muted mt-2 line-clamp-3">{selectedMod.description}</p>
               </div>
             </div>
+
+            {/* Full detail: gallery, description, license */}
+            {fullDetail && (
+              <div className="space-y-3">
+                {fullDetail.gallery?.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {fullDetail.gallery.slice(0, 5).map((g: any) => (
+                      <img key={g.url} src={g.url} alt="" className="h-28 rounded-xl object-cover shrink-0"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    ))}
+                  </div>
+                )}
+                {fullDetail.body && (
+                  <div className="p-4 rounded-2xl glass-strong border border-mc-border/50">
+                    <p className="text-[10px] text-mc-muted uppercase tracking-widest mb-2">{t('market.description')}</p>
+                    <div className="text-xs text-mc-muted leading-relaxed max-h-48 overflow-y-auto"
+                      dangerouslySetInnerHTML={{ __html: fullDetail.body.slice(0, 3000) }} />
+                  </div>
+                )}
+                <div className="flex items-center gap-3 text-[10px] text-mc-muted">
+                  <span className="flex items-center gap-1"><Shield size={10} />{fullDetail.license || 'Unknown'}</span>
+                  <span>{new Date(fullDetail.updated || Date.now()).toLocaleDateString()}</span>
+                  <span className="flex items-center gap-1">{fullDetail.categories?.slice(0, 3).map((c: string) => <span key={c} className="px-1.5 py-0.5 rounded bg-mc-card/50 border border-mc-border/30">{c}</span>)}</span>
+                </div>
+              </div>
+            )}
+            {detailLoading && <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-mc-accent" /></div>}
 
             <div className="p-4 rounded-2xl glass-strong border border-mc-border/50 space-y-3">
               <p className="text-xs font-semibold">{t('mods.installTo')}</p>

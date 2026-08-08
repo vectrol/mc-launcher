@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity } from 'lucide-react';
+import { Activity, X } from 'lucide-react';
 
 interface Props { t: (key: string) => string; }
 
@@ -39,7 +39,7 @@ export default function GameMonitor({ t }: Props) {
           <span className="text-mc-muted ml-0.5">MB</span>
         </span>
       )}
-      <button onClick={() => setVisible(false)} className="text-[10px] text-mc-muted hover:text-mc-red px-0.5">✕</button>
+      <button onClick={() => setVisible(false)} className="p-0.5 rounded hover:bg-mc-card/50 text-mc-muted hover:text-mc-red"><X size={11} /></button>
     </motion.div>
   );
 }

@@ -64,23 +64,33 @@ function compareVersions(a, b) {
 
 async function checkForUpdates() {
   const local = getLocalVersion();
-  try {
-    const data = await githubGet(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`);
-    const remote = (data.tag_name || '').replace(/^v/, '');
-    if (remote && compareVersions(remote, local) > 0) {
-      return {
-        hasUpdate: true,
-        current: local,
-        latest: remote,
-        notes: (data.body || '').slice(0, 500),
-        url: data.html_url,
-        assets: (data.assets || []).map(a => ({ name: a.name, url: a.browser_download_url, size: a.size })),
-      };
-    }
-    return { hasUpdate: false, current: local };
-  } catch {
-    return { hasUpdate: false, current: local };
+  // Try official API first, then mirrors (GitHub API often unreachable in CN)
+  const apiBases = [
+    `https://api.github.com/repos/${UPDATE_REPO}/releases/latest`,
+    `https://ghproxy.com/https://api.github.com/repos/${UPDATE_REPO}/releases/latest`,
+    `https://gh-proxy.com/https://api.github.com/repos/${UPDATE_REPO}/releases/latest`,
+    `https://github.moeyy.xyz/https://api.github.com/repos/${UPDATE_REPO}/releases/latest`,
+  ];
+  for (const base of apiBases) {
+    try {
+      const data = await githubGet(base);
+      const remote = (data.tag_name || '').replace(/^v/, '');
+      if (remote) {
+        if (compareVersions(remote, local) > 0) {
+          return {
+            hasUpdate: true,
+            current: local,
+            latest: remote,
+            notes: (data.body || '').slice(0, 500),
+            url: data.html_url,
+            assets: (data.assets || []).map(a => ({ name: a.name, url: a.browser_download_url, size: a.size })),
+          };
+        }
+        return { hasUpdate: false, current: local };
+      }
+    } catch { /* try next mirror */ }
   }
+  return { hasUpdate: false, current: local };
 }
 
 // Download the latest release asset (installer) to userData

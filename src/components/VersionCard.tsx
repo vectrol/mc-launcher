@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Play, CheckCircle2, Loader2, Sparkles, Cpu, Package, ChevronDown, Eye } from 'lucide-react';
+import { Download, Play, CheckCircle2, Loader2, Sparkles, Cpu, Package, ChevronDown, Eye, ArrowRight } from 'lucide-react';
 import { VersionInfo, ModLoaderVersion, DownloadProgress } from '../types';
 
 // Module-level loader version cache
@@ -151,7 +151,7 @@ export default function VersionCard({ version, index, isDownloading, isLaunching
                       <a href={changelog.url} target="_blank"
                         className="text-[9px] text-mc-accent-hover mt-1 inline-block hover:underline"
                         onClick={(e) => e.stopPropagation()}>
-                        {t('versions.viewFull')} →
+                        {t('versions.viewFull')} <ArrowRight size={8} className="inline" />
                       </a>
                     </div>
                   )}

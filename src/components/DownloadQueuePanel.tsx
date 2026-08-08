@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowDownCircle, Pause, Play, X, Loader2 } from 'lucide-react';
+import { ArrowDownCircle, Pause, Play, X, Loader2, Check } from 'lucide-react';
 import { DownloadQueueTask } from '../types';
 
 interface Props { t: (key: string) => string; }
@@ -59,7 +59,7 @@ export default function DownloadQueuePanel({ t }: Props) {
                         animate={{ width: `${task.percent}%` }} transition={{ duration: 0.3 }} />
                     </div>
                     <div className="flex justify-between mt-1 text-[8px] text-mc-muted">
-                      <span>{task.status === 'done' ? '✓' : task.status === 'error' ? task.error?.slice(0, 20) : task.status}</span>
+                      <span className="flex items-center gap-1">{task.status === 'done' ? <Check size={8} className="text-mc-green" /> : task.status === 'error' ? task.error?.slice(0, 20) : task.status}</span>
                       <span>{task.speed ? formatSpeed(task.speed) : `${task.percent}%`}</span>
                     </div>
                   </div>

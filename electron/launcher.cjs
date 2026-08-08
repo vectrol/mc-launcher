@@ -5,6 +5,10 @@ const { BASE_DIR, VERSIONS_DIR, ASSETS_DIR, LIBRARIES_DIR } = require('./mc-api.
 const { getValidAccount } = require('./mc-auth.cjs');
 const { loadSettings, saveSettings, getAutoMemory } = require('./mc-settings.cjs');
 
+function getLauncherVersion() {
+  try { return require('../package.json').version || '2.5.0'; } catch { return '2.5.0'; }
+}
+
 function findJava(versionId) {
   // Per-version Java override
   if (versionId) {
@@ -259,7 +263,7 @@ function launchGame(versionId, mainWindow) {
         arg
           .replace(/\$\{natives_directory\}/g, nativesDir)
           .replace(/\$\{launcher_name\}/g, 'mc-launcher')
-          .replace(/\$\{launcher_version\}/g, '2.0.0')
+          .replace(/\$\{launcher_version\}/g, getLauncherVersion())
           .replace(/\$\{path\}/g, log4jPath || '')
           .replace(/\$\{classpath\}/g, '')
           .replace(/\$\{assets_root\}/g, ASSETS_DIR)
@@ -276,7 +280,7 @@ function launchGame(versionId, mainWindow) {
         '-Dfml.ignorePatchDiscrepancies=true',
         `-Djava.library.path=${nativesDir}`,
         '-Dminecraft.launcher.brand=mc-launcher',
-        '-Dminecraft.launcher.version=2.0.0',
+        '-Dminecraft.launcher.version=' + getLauncherVersion(),
         ...(javaAgentArg ? [javaAgentArg] : []),
         ...customJvmArgs,
         ...cleanedJvmArgs,

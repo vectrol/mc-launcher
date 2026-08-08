@@ -1,6 +1,6 @@
 import { useState, useEffect, DragEvent, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Trash2, Package, FolderOpen, FolderInput, Loader2, Puzzle, ChevronDown, Image as ImageIcon, HardDrive, Archive, Download, Power, Copy, Pencil, Settings as SettingsIcon, X, RefreshCw, Star, CheckSquare } from 'lucide-react';
+import { Play, Trash2, Package, FolderOpen, FolderInput, Loader2, Puzzle, ChevronDown, Image as ImageIcon, HardDrive, Archive, Download, Power, Copy, Pencil, Settings as SettingsIcon, X, RefreshCw, Star, CheckSquare, AlertTriangle, ArrowRight } from 'lucide-react';
 import { InstalledVersion, ModInfo, WorldInfo, ResourcePackInfo } from '../types';
 
 interface Props {
@@ -414,7 +414,7 @@ function VersionMods({ versionId, t }: { versionId: string; t: Props['t'] }) {
       {conflicts.length > 0 && (
         <div className="p-2.5 rounded-xl bg-mc-red/10 border border-mc-red/20 text-[10px] text-mc-red space-y-1">
           {conflicts.map(c => (
-            <p key={c.base} className="truncate">⚠ {c.files.join(', ')}</p>
+            <p key={c.base} className="truncate flex items-center gap-1"><AlertTriangle size={10} className="shrink-0" />{c.files.join(', ')}</p>
           ))}
         </div>
       )}
@@ -440,7 +440,7 @@ function VersionMods({ versionId, t }: { versionId: string; t: Props['t'] }) {
             <div key={u.fileName} className="flex items-center justify-between p-2 rounded-xl bg-mc-orange/10 border border-mc-orange/25 text-xs">
               <div className="min-w-0">
                 <p className="font-mono text-[10px] text-mc-text truncate">{u.name}</p>
-                <p className="text-[9px] text-mc-muted">{u.localVersion} → <span className="text-mc-orange">{u.latestVersion}</span></p>
+                <p className="text-[9px] text-mc-muted flex items-center gap-1">{u.localVersion} <ArrowRight size={8} /> <span className="text-mc-orange">{u.latestVersion}</span></p>
               </div>
               <button onClick={() => updateMod(u)} className="px-2 py-1 rounded-lg bg-mc-orange/20 text-mc-orange text-[9px] hover:bg-mc-orange/30 transition-colors shrink-0">
                 <Download size={9} className="inline mr-0.5" />{t('mods.update')}

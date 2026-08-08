@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Palette, Languages, Cpu, Settings2, Save, CheckCircle2, HelpCircle, Keyboard, FolderOpen, ExternalLink, Info, RefreshCw, Loader2, Terminal, Download, Activity, Image as ImageIcon } from 'lucide-react';
+import { Palette, Languages, Cpu, Settings2, Save, CheckCircle2, HelpCircle, Keyboard, FolderOpen, ExternalLink, Info, RefreshCw, Loader2, Terminal, Download, Activity, Image as ImageIcon, Moon, Sun, ArrowRight, X } from 'lucide-react';
 import { AppSettings } from '../types';
 import { Lang } from '../i18n';
 
@@ -135,7 +135,7 @@ export default function SettingsPanel({ t }: Props) {
                       {(['dark', 'light'] as const).map((th) => (
                         <motion.button key={th} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => handleSave({ theme: th })}
                           className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${settings.theme === th ? 'bg-mc-accent/15 text-mc-accent-hover border-mc-accent/30' : 'bg-mc-card border-mc-border text-mc-muted hover:text-mc-text'}`}>
-                          <span className="mr-1.5">{th === 'dark' ? '🌙' : '☀️'}</span>{t(`settings.theme${th === 'dark' ? 'Dark' : 'Light'}`)}
+                          <span className="mr-1.5 inline-flex">{th === 'dark' ? <Moon size={13} /> : <Sun size={13} />}</span>{t(`settings.theme${th === 'dark' ? 'Dark' : 'Light'}`)}
                         </motion.button>
                       ))}
                     </div>
@@ -300,7 +300,7 @@ export default function SettingsPanel({ t }: Props) {
                     {diagnostics.network.map((n: any) => (
                       <div key={n.host} className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-mc-card/30 border border-mc-border/30 text-[10px]">
                         <span className="font-mono text-mc-muted">{n.host}</span>
-                        {n.ok ? <span className="text-mc-green">{n.ms}ms</span> : <span className="text-mc-red">{n.error || '✗'}</span>}
+                        {n.ok ? <span className="text-mc-green">{n.ms}ms</span> : <span className="text-mc-red">{n.error || <X size={10} className="inline" />}</span>}
                       </div>
                     ))}
                     {diagnostics.java.length > 0 && (
@@ -465,7 +465,7 @@ export default function SettingsPanel({ t }: Props) {
                           {downloadingUpdate ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
                           {downloadingUpdate ? `${updateProgress}%` : t('help.downloadUpdate')}
                         </button>
-                        <a href={updateInfo.url} target="_blank" className="text-[10px] text-mc-accent-hover hover:underline">{t('help.releasePage')} →</a>
+                        <a href={updateInfo.url} target="_blank" className="text-[10px] text-mc-accent-hover hover:underline inline-flex items-center gap-0.5">{t('help.releasePage')}<ArrowRight size={9} /></a>
                       </div>
                       {downloadingUpdate && (
                         <div className="h-1.5 rounded-full bg-mc-surface overflow-hidden">

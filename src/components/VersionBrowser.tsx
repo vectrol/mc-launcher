@@ -26,6 +26,7 @@ export default function VersionBrowser({
     snapshots: false,
     old: false,
   });
+  const [showAll, setShowAll] = useState<Record<string, boolean>>({ releases: false, snapshots: false, old: false });
 
   if (!manifest) {
     return (
@@ -50,9 +51,9 @@ export default function VersionBrowser({
     return v.id.toLowerCase().includes(search.toLowerCase());
   };
 
-  const filteredReleases = releases.filter(filterFn).slice(0, 50);
-  const filteredSnapshots = snapshots.filter(filterFn).slice(0, 30);
-  const filteredOld = oldBetas.filter(filterFn).slice(0, 30);
+  const filteredReleases = releases.filter(filterFn);
+  const filteredSnapshots = snapshots.filter(filterFn);
+  const filteredOld = oldBetas.filter(filterFn);
 
   function toggleSection(s: string) {
     setSections((prev) => ({ ...prev, [s]: !prev[s] }));
@@ -102,13 +103,14 @@ export default function VersionBrowser({
                   className="overflow-hidden"
                 >
                   {section.items.length > 0 ? (
+                    <>
                     <motion.div
                       initial="hidden"
                       animate="visible"
                       variants={{ visible: { transition: { staggerChildren: 0.03 } } }}
                       className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3"
                     >
-                      {section.items.map((v, i) => (
+                      {section.items.slice(0, showAll[section.key] ? undefined : 40).map((v, i) => (
                         <VersionCard
                           key={v.id}
                           version={v}
@@ -124,6 +126,13 @@ export default function VersionBrowser({
                         />
                       ))}
                     </motion.div>
+                    {section.items.length > 40 && (
+                      <button onClick={() => setShowAll(prev => ({ ...prev, [section.key]: !prev[section.key] }))}
+                        className="mt-3 w-full py-2 rounded-xl bg-mc-card/40 border border-mc-border/40 text-xs text-mc-muted hover:text-mc-accent-hover hover:border-mc-accent/30 transition-all">
+                        {showAll[section.key] ? t('versions.collapse') : t('versions.showMore', section.items.length - 40)}
+                      </button>
+                    )}
+                    </>
                   ) : (
                     <p className="text-sm text-mc-muted py-3 italic">{t('versions.empty')}</p>
                   )}
