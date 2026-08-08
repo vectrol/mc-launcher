@@ -32,6 +32,8 @@ async function getVersionChangelog(versionId) {
   return null;
 }
 
+let versionManifest = null;
+
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
