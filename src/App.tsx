@@ -55,7 +55,18 @@ function LauncherApp() {
   const [lang, setLang] = useState<Lang>('zh-CN');
   const [splashVisible, setSplashVisible] = useState(false);
   const [splashVersion, setSplashVersion] = useState('');
+  const [splashStatus, setSplashStatus] = useState('');
   const [crashDetail, setCrashDetail] = useState<any>(null);
+
+  // Listen for game logs during launch to show status
+  useEffect(() => {
+    window.electronAPI.mc.onGameLog((data: string) => {
+      setSplashVisible(false); // game started, hide splash
+      if (data.includes('[Launcher]') || data.includes('[Java]')) {
+        setSplashStatus(data.trim());
+      }
+    });
+  }, []);
 
   const t = (key: string, ...args: (string | number)[]) => {
     const dict = translations[lang] || translations['zh-CN'];
@@ -185,26 +196,27 @@ function LauncherApp() {
       setLaunching(versionId);
       setError(null);
       setSplashVersion(versionId);
+      setSplashStatus(t('card.validating'));
       setSplashVisible(true);
 
       // Pre-launch validation
       const validation = await window.electronAPI.mc.validateLaunch(versionId);
       if (!validation.java.valid) {
-        setSplashVisible(false);
-        toast(validation.java.error || 'Java not found', 'error');
+        setSplashStatus(`Error: ${validation.java.error || 'Java not found'}`);
         return;
       }
       if (!validation.version.valid) {
-        setSplashVisible(false);
-        toast(validation.version.error || 'Version incomplete', 'error');
+        setSplashStatus(`Error: ${validation.version.error || 'Version incomplete'}`);
         return;
       }
       if (!validation.disk.valid) {
         toast(validation.disk.error || 'Low disk space', 'warning');
       }
 
+      setSplashStatus(t('card.launching'));
       await window.electronAPI.mc.launch(versionId);
       setSplashVisible(false);
+      setSplashStatus('');
 
       // Check for crash reports after game closes
       const crashes = await window.electronAPI.mc.checkCrashReports();
@@ -217,18 +229,18 @@ function LauncherApp() {
         if (detail) setCrashDetail(detail);
       }
     } catch (e: any) {
-      setSplashVisible(false);
       const msg = e.message || t('error.launch');
       setError(msg);
-      // Show launch failure prominently + hint to re-download if incomplete
-      if (msg.includes('incomplete') || msg.includes('Classpath')) {
-        toast(`${msg} 閳?${t('notify.redownload')}`, 'error');
-      } else {
-        toast(msg, 'error');
-      }
+      setSplashStatus(`Error: ${msg}`);
     } finally {
       setLaunching(null);
     }
+  }
+
+  function cancelLaunch() {
+    setLaunching(null);
+    setSplashVisible(false);
+    setSplashStatus('');
   }
 
   const navItems: { id: Page; label: string; icon: any }[] = [
@@ -385,7 +397,7 @@ function LauncherApp() {
       </div>
 
       {/* Splash */}
-      <SplashOverlay visible={splashVisible} versionId={splashVersion} t={t} />
+      <SplashOverlay visible={splashVisible} versionId={splashVersion} status={splashStatus} onCancel={cancelLaunch} t={t} />
 
       {/* Crash detail modal */}
       <CrashDetailModal crash={crashDetail} onClose={() => setCrashDetail(null)} t={t} />
