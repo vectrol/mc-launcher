@@ -31,6 +31,7 @@ export default function ModBrowser({ installedList, t }: Props) {
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
   const [targetVersion, setTargetVersion] = useState('');
+  const [packInstalling, setPackInstalling] = useState(false);
   const [installingMod, setInstallingMod] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<'downloads' | 'follows' | 'updated'>('downloads');
@@ -121,7 +122,6 @@ export default function ModBrowser({ installedList, t }: Props) {
   }
 
   // Modpack: download .mrpack then parse+install
-  const [packInstalling, setPackInstalling] = useState(false);
   async function installModpack() {
     if (!selectedMod || type !== 'modpack') return;
     try {

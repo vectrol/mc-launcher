@@ -259,7 +259,11 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
                                   if (editMode.type === 'clone') await window.electronAPI.mc.cloneVersion(v.id, editName.trim());
                                   else if (editName.trim() !== v.id) await window.electronAPI.mc.renameVersion(v.id, editName.trim());
                                   await loadVersions();
-                                } catch {}
+                                  setBannerMsg({ ok: true, text: t('library.done') });
+                                } catch (err: any) {
+                                  setBannerMsg({ ok: false, text: err?.message || t('error.export') });
+                                }
+                                setTimeout(() => setBannerMsg(null), 3000);
                                 setEditMode(null);
                               }
                               if (e.key === 'Escape') setEditMode(null);

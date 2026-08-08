@@ -20,6 +20,7 @@ export default function FriendPanel({ t, installedList }: Props) {
   const [inputCode, setInputCode] = useState('');
   const [joinTarget, setJoinTarget] = useState<LanWorld | null>(null);
   const [joinVersion, setJoinVersion] = useState('');
+  const [statusMsg, setStatusMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     refresh();
@@ -39,8 +40,18 @@ export default function FriendPanel({ t, installedList }: Props) {
 
   async function inputCodeAdd() {
     if (!inputCode.trim()) return;
-    const r = await window.electronAPI.mc.resolveInviteCode(inputCode.trim());
-    if (r.success) { setInputCode(''); refresh(); }
+    try {
+      const r = await window.electronAPI.mc.resolveInviteCode(inputCode.trim());
+      if (r.success) {
+        setInputCode(''); refresh();
+        setStatusMsg({ ok: true, text: `${t('friends.friendAdded')}: ${r.username} (${r.ip})` });
+      } else {
+        setStatusMsg({ ok: false, text: r.error || t('friends.badCode') });
+      }
+    } catch (e: any) {
+      setStatusMsg({ ok: false, text: e?.message || t('friends.badCode') });
+    }
+    setTimeout(() => setStatusMsg(null), 4000);
   }
 
   async function handleJoin(world: LanWorld) {
@@ -48,8 +59,8 @@ export default function FriendPanel({ t, installedList }: Props) {
     setCopied(world.id);
     setTimeout(() => setCopied(null), 2000);
     if (joinVersion) {
-      // One-click join: start game with target version
-      try { await window.electronAPI.mc.launch(joinVersion); } catch {}
+      try { await window.electronAPI.mc.launch(joinVersion); }
+      catch { setStatusMsg({ ok: false, text: t('error.launch') }); setTimeout(() => setStatusMsg(null), 4000); }
     }
   }
 
@@ -84,6 +95,11 @@ export default function FriendPanel({ t, installedList }: Props) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {statusMsg && (
+          <div className={`p-2.5 rounded-xl text-xs ${statusMsg.ok ? 'bg-mc-green/10 text-mc-green border border-mc-green/20' : 'bg-mc-red/10 text-mc-red border border-mc-red/20'}`}>
+            {statusMsg.text}
+          </div>
+        )}
         {showAdd && (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="p-4 rounded-2xl glass-strong border border-mc-accent/20 space-y-3 max-w-md">
             <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t('friends.name')}

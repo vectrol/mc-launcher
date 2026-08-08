@@ -143,7 +143,7 @@ async function getModrinthMod(slug) {
 async function getModrinthVersions(slug, mcVersion, projectType = 'mod') {
   let url = `${apiBase()}/project/${encodeURIComponent(slug)}/version`;
   if (projectType === 'mod') url += '?loaders=["fabric","forge","quilt","neoforge"]';
-  if (mcVersion) url += (url.includes('?') ? '&' : '?') + `game_versions=["${mcVersion}"]`;
+  if (mcVersion && mcVersion !== 'undefined') url += (url.includes('?') ? '&' : '?') + `game_versions=["${mcVersion}"]`;
   const data = await httpGetJSON(url);
   return data.map((v) => ({
     id: v.id,
