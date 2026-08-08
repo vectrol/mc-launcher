@@ -220,6 +220,81 @@ test('i18n: zh/en keys match', () => {
   assertEq(missingEn.length, 0, `en missing: ${missingEn.slice(0, 5).join(', ')}`);
 });
 
+// ─── Java constraint detection (headless) ───────────────────
+
+test('java: constraint for fabric-loader extracts mc version', () => {
+  const { getJavaConstraint } = require('../electron/mc-java.cjs');
+  const c = getJavaConstraint('fabric-loader-0.19.3-1.20.1');
+  assert(c.min >= 17, `fabric 1.20.1 needs >=17, got min=${c.min}`);
+});
+
+test('java: constraint for vanilla 1.20.1 is Java 17+', () => {
+  const { getJavaConstraint } = require('../electron/mc-java.cjs');
+  const c = getJavaConstraint('1.20.1');
+  assertEq(c.min, 17, 'vanilla 1.20.1 min=17');
+});
+
+test('java: constraint for 1.12.2 is Java 8+', () => {
+  const { getJavaConstraint } = require('../electron/mc-java.cjs');
+  const c = getJavaConstraint('1.12.2');
+  assertEq(c.min, 8, '1.12.2 min=8');
+});
+
+test('java: constraint for 1.21 is Java 21+', () => {
+  const { getJavaConstraint } = require('../electron/mc-java.cjs');
+  const c = getJavaConstraint('1.21');
+  assertEq(c.min, 21, '1.21 min=21');
+});
+
+test('java: null versionId defaults to 17', () => {
+  const { getJavaConstraint } = require('../electron/mc-java.cjs');
+  const c = getJavaConstraint(null);
+  assertEq(c.min, 17, 'null defaults to 17');
+});
+
+test('java: recommendedJavaMajor handles loader IDs', () => {
+  const { recommendedJavaMajor } = require('../electron/mc-java.cjs');
+  assertEq(recommendedJavaMajor('fabric-loader-0.19.3-1.20.1'), 17, 'fabric 1.20.1');
+  assertEq(recommendedJavaMajor('1.12.2'), 8, 'vanilla 1.12');
+  assertEq(recommendedJavaMajor('1.21.4'), 21, 'vanilla 1.21');
+  assertEq(recommendedJavaMajor(null), 17, 'null fallback');
+});
+
+// ─── Version detection with loaders ─────────────────────────
+
+test('versions: getInstalledVersions returns loaders array', () => {
+  const { getInstalledVersions } = require('../electron/mc-versions.cjs');
+  const versions = getInstalledVersions();
+  assert(Array.isArray(versions), 'is array');
+  for (const v of versions) {
+    assert(v.id, 'has id');
+    assert(Array.isArray(v.loaders), 'loaders is array');
+    assert(typeof v.modCount === 'number', 'modCount number');
+  }
+});
+
+// ─── Page switching robustness (headless unit) ──────────────
+
+test('page: App page type has exactly 7 pages', () => {
+  // Verify the Page type in App.tsx matches 7 pages
+  const src = require('fs').readFileSync(path.join(__dirname, '..', 'src', 'App.tsx'), 'utf-8');
+  const match = src.match(/type Page = '([^;]+)'/);
+  assert(match, 'Page type found');
+  const pages = match[1].split("' | '");
+  assertEq(pages.length, 7, `expected 7 pages, got ${pages.length}: ${pages.join(', ')}`);
+});
+
+test('page: no AnimatePresence mode="wait" in App.tsx', () => {
+  const src = require('fs').readFileSync(path.join(__dirname, '..', 'src', 'App.tsx'), 'utf-8');
+  assert(!src.includes('mode="wait"'), 'mode="wait" removed from App.tsx');
+});
+
+test('page: single keyed motion.div pattern present', () => {
+  const src = require('fs').readFileSync(path.join(__dirname, '..', 'src', 'App.tsx'), 'utf-8');
+  assert(src.includes('key={activePage}'), 'single key={activePage} pattern found');
+  assert(src.includes('mode="popLayout"'), 'mode=popLayout found');
+});
+
 // ─── Run ───────────────────────────────────────────────────
 
 runAll();

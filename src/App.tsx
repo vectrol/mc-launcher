@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Globe, Library, Settings, Menu, X, RefreshCw, Play, ChevronRight, ShoppingBag, Globe2, Users } from 'lucide-react';
@@ -48,13 +48,9 @@ function LauncherApp() {
   const [showDownloadPanel, setShowDownloadPanel] = useState(false);
   const [activePage, setActivePage] = useState<Page>('home');
 
-  // Ref-based navigation guard: prevents double-switching during animation
-  const navigatingRef = useRef(false);
   function navigateTo(page: Page) {
-    if (navigatingRef.current || page === activePage) return;
-    navigatingRef.current = true;
+    if (page === activePage) return;
     setActivePage(page);
-    setTimeout(() => { navigatingRef.current = false; }, 300);
   }
   const [lang, setLang] = useState<Lang>('zh-CN');
   const [splashVisible, setSplashVisible] = useState(false);
@@ -348,54 +344,36 @@ function LauncherApp() {
           </AnimatePresence>
 
           {/* Page content */}
-          <Suspense fallback={
-            <div className="flex-1 flex items-center justify-center">
-              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                className="w-6 h-6 rounded-full border-2 border-mc-accent border-t-transparent" />
-            </div>
-          }>
-          <AnimatePresence mode="wait">
-            {activePage === 'home' ? (
-              <motion.div key="home" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
-                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
-                <HomePage installedList={installedList} onLaunch={handleLaunch} launching={launching} manifest={manifest} t={t} />
-              </motion.div>
-            ) : activePage === 'versions' ? (
-              <motion.div key="versions" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
-                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
-                <VersionBrowser
-                  manifest={manifest} loading={loading} downloading={downloading} launching={launching}
-                  installedVersions={installedVersions} downloadProgress={downloadProgress}
-                  onInstall={handleInstall} onLaunch={handleLaunch} t={t} />
-              </motion.div>
-            ) : activePage === 'library' ? (
-              <motion.div key="library" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
-                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
-                <LibraryPage onLaunch={handleLaunch} onDeleted={refreshInstalled} installingId={downloading} t={t} />
-              </motion.div>
-            ) : activePage === 'modBrowser' ? (
-              <motion.div key="modBrowser" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
-                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
-                <ModBrowser installedList={installedList} t={t} />
-              </motion.div>
-            ) : activePage === 'servers' ? (
-              <motion.div key="servers" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
-                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
-                <ServerList t={t} />
-              </motion.div>
-            ) : activePage === 'friends' ? (
-              <motion.div key="friends" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
-                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
-                <FriendPanel t={t} installedList={installedList} />
-              </motion.div>
-            ) : (
-              <motion.div key="settings" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
-                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
-                <SettingsPanel t={t} />
-              </motion.div>
-            )}
+          <AnimatePresence mode="popLayout">
+            <motion.div
+              key={activePage}
+              initial={{ opacity: 0, x: 28 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -28 }}
+              transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
+              className="flex-1 flex flex-col overflow-hidden"
+            >
+              <Suspense fallback={
+                <div className="flex-1 flex items-center justify-center">
+                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    className="w-6 h-6 rounded-full border-2 border-mc-accent border-t-transparent" />
+                </div>
+              }>
+                {activePage === 'home' && <HomePage installedList={installedList} onLaunch={handleLaunch} launching={launching} manifest={manifest} t={t} />}
+                {activePage === 'versions' && (
+                  <VersionBrowser
+                    manifest={manifest} loading={loading} downloading={downloading} launching={launching}
+                    installedVersions={installedVersions} downloadProgress={downloadProgress}
+                    onInstall={handleInstall} onLaunch={handleLaunch} t={t} />
+                )}
+                {activePage === 'library' && <LibraryPage onLaunch={handleLaunch} onDeleted={refreshInstalled} installingId={downloading} t={t} />}
+                {activePage === 'modBrowser' && <ModBrowser installedList={installedList} t={t} />}
+                {activePage === 'servers' && <ServerList t={t} />}
+                {activePage === 'friends' && <FriendPanel t={t} installedList={installedList} />}
+                {activePage === 'settings' && <SettingsPanel t={t} />}
+              </Suspense>
+            </motion.div>
           </AnimatePresence>
-          </Suspense>
 
           {/* Console */}
           <ConsolePanel t={t} />
