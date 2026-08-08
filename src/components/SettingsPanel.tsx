@@ -38,6 +38,7 @@ export default function SettingsPanel({ t }: Props) {
   const [updateProgress, setUpdateProgress] = useState(0);
   const [updateDownloaded, setUpdateDownloaded] = useState(false);
   const [launcherVersion, setLauncherVersion] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     loadSettings();
@@ -103,6 +104,31 @@ export default function SettingsPanel({ t }: Props) {
   }
   async function handleSave(updates: Partial<AppSettings>) {
     if (!settings) return;
+    // Validate numeric fields
+    if (updates.maxMemory !== undefined) {
+      const mem = parseInt(String(updates.maxMemory));
+      if (isNaN(mem) || mem < 512 || mem > 65536) {
+        setSaveError(`${t('settings.invalidMem')} (512-65536)`);
+        setTimeout(() => setSaveError(null), 3000);
+        return;
+      }
+    }
+    if (updates.downloadThreads !== undefined) {
+      const threadNum = parseInt(String(updates.downloadThreads));
+      if (isNaN(threadNum) || threadNum < 1 || threadNum > 32) {
+        setSaveError(`${t('settings.invalidThreads')} (1-32)`);
+        setTimeout(() => setSaveError(null), 3000);
+        return;
+      }
+    }
+    if (updates.bandwidthLimit !== undefined) {
+      const b = parseInt(String(updates.bandwidthLimit));
+      if (isNaN(b) || b < 0) {
+        setSaveError(t('settings.invalidBw'));
+        setTimeout(() => setSaveError(null), 3000);
+        return;
+      }
+    }
     setSaved(false);
     const result = await window.electronAPI.mc.saveSettings(updates);
     setSettings(result);
@@ -554,6 +580,12 @@ export default function SettingsPanel({ t }: Props) {
                 </div>
               </div>
             </section>
+          )}
+
+          {saveError && (
+            <div className="p-2.5 rounded-xl bg-mc-red/10 border border-mc-red/20 text-xs text-mc-red text-center">
+              {saveError}
+            </div>
           )}
 
           <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={() => handleSave({})}

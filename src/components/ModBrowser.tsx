@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Download, Loader2, ExternalLink, Sparkles, Package, Puzzle, Sun, Palette, Boxes, Star, Dices, Shield } from 'lucide-react';
+import { Search, Download, Loader2, ExternalLink, Sparkles, Package, Puzzle, Sun, Palette, Boxes, Star, Dices, Shield, GitBranch, FileText } from 'lucide-react';
 import { ModrinthMod, InstalledVersion } from '../types';
 
 type ResourceType = 'mod' | 'shader' | 'resourcepack' | 'modpack' | 'curseforge';
@@ -37,6 +37,9 @@ export default function ModBrowser({ installedList, t }: Props) {
   const [sortBy, setSortBy] = useState<'downloads' | 'follows' | 'updated'>('downloads');
   const [fullDetail, setFullDetail] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [depTree, setDepTree] = useState<any[] | null>(null);
+  const [depLoading, setDepLoading] = useState(false);
+  const [expandedVersion, setExpandedVersion] = useState<string | null>(null);
 
   useEffect(() => {
     try { setFavorites(JSON.parse(localStorage.getItem('mc_favorites') || '[]')); } catch {}
@@ -97,10 +100,19 @@ export default function ModBrowser({ installedList, t }: Props) {
     setShowInstall(false);
     setModVersions([]);
     setTargetVersion('');
+    setDepTree(null);
     // Fetch full detail (body, gallery, license) for modrinth mods
     if (mod.projectType !== 'curseforge') {
       setDetailLoading(true);
       window.electronAPI.mc.getModrinthMod(mod.slug).then((d) => setFullDetail(d)).catch(() => {}).finally(() => setDetailLoading(false));
+      // Load dependency tree for mods (only for the detail view)
+      if (type === 'mod') {
+        setDepLoading(true);
+        window.electronAPI.mc.getModDependencyTree(mod.slug)
+          .then(t => setDepTree(t.length > 0 ? t : null))
+          .catch(() => setDepTree(null))
+          .finally(() => setDepLoading(false));
+      }
     } else {
       setFullDetail(null);
     }
@@ -249,6 +261,36 @@ export default function ModBrowser({ installedList, t }: Props) {
             )}
             {detailLoading && <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-mc-accent" /></div>}
 
+            {/* Dependency tree */}
+            {(depLoading || depTree) && (
+              <div className="p-4 rounded-2xl glass-strong border border-mc-border/50">
+                <p className="text-xs font-semibold mb-2 flex items-center gap-1.5"><GitBranch size={12} className="text-mc-accent-hover" />{t('market.deps')}</p>
+                {depLoading ? (
+                  <div className="flex justify-center py-3"><Loader2 size={16} className="animate-spin text-mc-accent" /></div>
+                ) : (
+                  <div className="space-y-1 text-[11px]">
+                    {depTree?.map((dep, i) => (
+                      <div key={i}>
+                        <div className="flex items-center gap-2 text-mc-text">
+                          <GitBranch size={10} className="text-mc-muted shrink-0" />
+                          <span className="font-mono">{dep.slug || dep.projectId}</span>
+                          {dep.children?.length > 0 && (
+                            <span className="text-[9px] text-mc-muted">({dep.children.length} sub-dep)</span>
+                          )}
+                        </div>
+                        {dep.children?.map((c: any, j: number) => (
+                          <div key={j} className="flex items-center gap-2 pl-6 text-mc-muted">
+                            <GitBranch size={9} className="shrink-0" />
+                            <span className="font-mono">{c.slug || c.projectId}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="p-4 rounded-2xl glass-strong border border-mc-border/50 space-y-3">
               <p className="text-xs font-semibold">{t('mods.installTo')}</p>
               {type === 'mod' && installedList.length === 0 ? (
@@ -292,16 +334,32 @@ export default function ModBrowser({ installedList, t }: Props) {
                       {modVersions.map((v) => {
                         const file = v.files.find((f: any) => f.primary) || v.files[0];
                         return file ? (
-                          <div key={v.id} className="flex items-center justify-between p-2.5 rounded-xl bg-mc-card/30 border border-mc-border/30">
-                            <div>
-                              <p className="text-xs font-mono text-mc-text">{v.name}</p>
-                              <p className="text-[9px] text-mc-muted">{(v.loaders || []).join(', ')} · {Math.round(file.size / 1024)}KB</p>
+                          <div key={v.id}>
+                            <div className="flex items-center justify-between p-2.5 rounded-xl bg-mc-card/30 border border-mc-border/30">
+                              <div className="min-w-0">
+                                <p className="text-xs font-mono text-mc-text">{v.name}</p>
+                                <p className="text-[9px] text-mc-muted">{(v.loaders || []).join(', ')} · {Math.round(file.size / 1024)}KB · {new Date(v.date || Date.now()).toLocaleDateString()}</p>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {v.changelog && (
+                                  <button onClick={() => setExpandedVersion(expandedVersion === v.id ? null : v.id)}
+                                    className="p-1.5 rounded-lg text-mc-muted hover:text-mc-accent-hover transition-colors"
+                                    title={t('market.changelog')}>
+                                    <FileText size={11} />
+                                  </button>
+                                )}
+                                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                                  onClick={() => doInstall(file.url, file.name, v.id)} disabled={installingMod}
+                                  className="px-3 py-1.5 rounded-lg bg-mc-green/20 text-mc-green hover:bg-mc-green/30 text-[10px] font-medium transition-all disabled:opacity-40">
+                                  {installingMod ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
+                                </motion.button>
+                              </div>
                             </div>
-                            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                              onClick={() => doInstall(file.url, file.name, v.id)} disabled={installingMod}
-                              className="px-3 py-1.5 rounded-lg bg-mc-green/20 text-mc-green hover:bg-mc-green/30 text-[10px] font-medium transition-all disabled:opacity-40">
-                              {installingMod ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
-                            </motion.button>
+                            {expandedVersion === v.id && v.changelog && (
+                              <div className="p-2.5 mt-1 rounded-xl bg-mc-card/20 border border-mc-border/20 text-[10px] text-mc-muted leading-relaxed max-h-32 overflow-y-auto whitespace-pre-wrap">
+                                {v.changelog.slice(0, 1000)}
+                              </div>
+                            )}
                           </div>
                         ) : null;
                       })}
