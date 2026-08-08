@@ -105,32 +105,44 @@ async function downloadUpdate(onProgress) {
   if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
   const destPath = path.join(destDir, asset.name);
 
+  // Try official URL then mirror proxies (GitHub downloads often blocked/slow in CN)
+  const dlUrls = [
+    asset.url,
+    `https://ghproxy.com/${asset.url}`,
+    `https://gh-proxy.com/${asset.url}`,
+    `https://github.moeyy.xyz/${asset.url}`,
+  ];
+  for (const url of dlUrls) {
+    try {
+      await downloadTo(url, destPath, onProgress);
+      return { path: destPath, name: asset.name, info };
+    } catch { /* try next */ }
+  }
+  throw new Error('Download failed on all mirrors');
+}
+
+function downloadTo(url, destPath, onProgress) {
   return new Promise((resolve, reject) => {
     const https = require('https');
-    https.get(asset.url, { headers: { 'User-Agent': 'MCLauncher' } }, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        // Follow GitHub redirect to objects.githubusercontent.com
-        https.get(res.headers.location, (res2) => {
-          const total = parseInt(res2.headers['content-length'], 10) || 0;
-          let done = 0;
-          const ws = fs.createWriteStream(destPath);
-          res2.on('data', c => {
-            done += c.length;
-            ws.write(c);
-            if (onProgress && total > 0) onProgress({ percent: Math.round((done / total) * 100), downloaded: done, total });
-          });
-          res2.on('end', () => { ws.end(); resolve({ path: destPath, name: asset.name, info }); });
-          res2.on('error', reject);
-        }).on('error', reject);
-        return;
-      }
-      const total = parseInt(res.headers['content-length'], 10) || 0;
-      let done = 0;
-      const ws = fs.createWriteStream(destPath);
-      res.on('data', c => { done += c.length; ws.write(c); if (onProgress && total > 0) onProgress({ percent: Math.round((done / total) * 100), downloaded: done, total }); });
-      res.on('end', () => { ws.end(); resolve({ path: destPath, name: asset.name, info }); });
-      res.on('error', reject);
-    }).on('error', reject);
+    const follow = (u, redirects) => {
+      https.get(u, { headers: { 'User-Agent': 'MCLauncher' } }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && redirects < 5) {
+          return follow(res.headers.location, redirects + 1);
+        }
+        if (res.statusCode >= 400) return reject(new Error(`HTTP ${res.statusCode}`));
+        const total = parseInt(res.headers['content-length'], 10) || 0;
+        let done = 0;
+        const ws = fs.createWriteStream(destPath);
+        res.on('data', c => {
+          done += c.length;
+          ws.write(c);
+          if (onProgress && total > 0) onProgress({ percent: Math.round((done / total) * 100), downloaded: done, total });
+        });
+        res.on('end', () => { ws.end(); resolve(); });
+        res.on('error', reject);
+      }).on('error', reject);
+    };
+    follow(url, 0);
   });
 }
 

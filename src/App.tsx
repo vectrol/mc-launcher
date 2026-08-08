@@ -4,23 +4,23 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Globe, Library, Settings, Menu, X, RefreshCw, Play, ChevronRight, ShoppingBag, Globe2, Camera, Users } from 'lucide-react';
 import TitleBar from './components/TitleBar';
 import DownloadPanel from './components/DownloadPanel';
-import HomePage from './components/HomePage';
-import VersionBrowser from './components/VersionBrowser';
-import LibraryPage from './components/LibraryPage';
 import AccountPanel from './components/AccountPanel';
 import ConsolePanel from './components/ConsolePanel';
-import ModBrowser from './components/ModBrowser';
-import ServerList from './components/ServerList';
 import SplashOverlay from './components/SplashOverlay';
 import DownloadQueuePanel from './components/DownloadQueuePanel';
-import FriendPanel from './components/FriendPanel';
 import GameMonitor from './components/GameMonitor';
 import CrashDetailModal from './components/CrashDetailModal';
 import { ToastProvider, useToast } from './components/Toast';
 import { VersionManifest, DownloadProgress, InstalledVersion, AccountInfo } from './types';
 import { translations, Lang, formatT } from './i18n';
 
-// Lazy-loaded pages
+// Lazy-loaded pages (all pages load on demand for faster startup)
+const HomePage = lazy(() => import('./components/HomePage'));
+const VersionBrowser = lazy(() => import('./components/VersionBrowser'));
+const LibraryPage = lazy(() => import('./components/LibraryPage'));
+const ModBrowser = lazy(() => import('./components/ModBrowser'));
+const ServerList = lazy(() => import('./components/ServerList'));
+const FriendPanel = lazy(() => import('./components/FriendPanel'));
 const SettingsPanel = lazy(() => import('./components/SettingsPanel'));
 const ScreenshotsPanel = lazy(() => import('./components/ScreenshotsPanel'));
 
@@ -313,6 +313,12 @@ function LauncherApp() {
           </AnimatePresence>
 
           {/* Page content */}
+          <Suspense fallback={
+            <div className="flex-1 flex items-center justify-center">
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                className="w-6 h-6 rounded-full border-2 border-mc-accent border-t-transparent" />
+            </div>
+          }>
           <AnimatePresence mode="wait">
             {activePage === 'home' ? (
               <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 flex flex-col overflow-hidden">
@@ -342,19 +348,16 @@ function LauncherApp() {
                 <FriendPanel t={t} installedList={installedList} />
               </motion.div>
             ) : activePage === 'screenshots' ? (
-              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-6 h-6 rounded-full border-2 border-mc-accent border-t-transparent" /></div>}>
-                <motion.div key="screenshots" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 flex flex-col overflow-hidden">
-                  <ScreenshotsPanel t={t} />
-                </motion.div>
-              </Suspense>
+              <motion.div key="screenshots" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 flex flex-col overflow-hidden">
+                <ScreenshotsPanel t={t} />
+              </motion.div>
             ) : (
-              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-6 h-6 rounded-full border-2 border-mc-accent border-t-transparent" /></div>}>
-                <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 flex flex-col overflow-hidden">
-                  <SettingsPanel t={t} />
-                </motion.div>
-              </Suspense>
+              <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 flex flex-col overflow-hidden">
+                <SettingsPanel t={t} />
+              </motion.div>
             )}
           </AnimatePresence>
+          </Suspense>
 
           {/* Console */}
           <ConsolePanel t={t} />

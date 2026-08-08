@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Play, CheckCircle2, Loader2, Sparkles, Cpu, Package, ChevronDown, Eye, ArrowRight } from 'lucide-react';
 import { VersionInfo, ModLoaderVersion, DownloadProgress } from '../types';
@@ -19,7 +19,7 @@ interface Props {
   activeId: string | null;
 }
 
-export default function VersionCard({ version, index, isDownloading, isLaunching, isInstalled, onInstall, onLaunch, t, progress, activeId }: Props) {
+function VersionCard({ version, index, isDownloading, isLaunching, isInstalled, onInstall, onLaunch, t, progress, activeId }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [variant, setVariant] = useState<'vanilla' | 'fabric' | 'forge' | 'optifine' | 'neoforge' | 'quilt'>('vanilla');
   const [loaderVersions, setLoaderVersions] = useState<ModLoaderVersion[]>([]);
@@ -240,3 +240,5 @@ export default function VersionCard({ version, index, isDownloading, isLaunching
     </motion.div>
   );
 }
+
+export default memo(VersionCard);

@@ -11,9 +11,13 @@ interface Props {
   t: (key: string, ...args: (string | number)[]) => string;
 }
 
+// Module-level cache: avoid re-fetching news/stats on every page mount
+let newsCache: { data: NewsArticle[]; ts: number } | null = null;
+const NEWS_TTL = 10 * 60 * 1000;
+
 export default function HomePage({ installedList, onLaunch, launching, manifest, t }: Props) {
-  const [news, setNews] = useState<NewsArticle[]>([]);
-  const [newsLoading, setNewsLoading] = useState(true);
+  const [news, setNews] = useState<NewsArticle[]>(newsCache?.data || []);
+  const [newsLoading, setNewsLoading] = useState(!newsCache);
   const [playTime, setPlayTime] = useState<Record<string, number>>({});
   const [dlBytes, setDlBytes] = useState(0);
   const tips = [
@@ -27,7 +31,14 @@ export default function HomePage({ installedList, onLaunch, launching, manifest,
   }, [tips.length]);
 
   useEffect(() => {
-    window.electronAPI.mc.getMinecraftNews().then((n) => { setNews(n); setNewsLoading(false); });
+    // News: cached 10 min
+    if (!newsCache || Date.now() - newsCache.ts > NEWS_TTL) {
+      window.electronAPI.mc.getMinecraftNews().then((n) => {
+        newsCache = { data: n, ts: Date.now() };
+        setNews(n);
+        setNewsLoading(false);
+      }).catch(() => setNewsLoading(false));
+    }
     window.electronAPI.mc.getPlayTime().then(setPlayTime).catch(() => {});
     window.electronAPI.mc.getDownloadStats().then((s) => setDlBytes(s.totalBytes)).catch(() => {});
   }, []);
