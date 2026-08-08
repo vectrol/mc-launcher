@@ -25,7 +25,7 @@ const { getInstalledJres, listAdoptium, installJre } = require('./mc-jre.cjs');
 const { scanJava, recommendedJavaMajor, runDiagnostics } = require('./mc-java.cjs');
 const { getCrashDetail } = require('./mc-crash.cjs');
 const { autoSelectSource } = require('./mc-api.cjs');
-const { getInstanceIcon, setInstanceIcon } = require('./mc-instances.cjs');
+const { getInstanceIcon, setInstanceIcon, getInstanceBanner, setInstanceBanner } = require('./mc-instances.cjs');
 
 let mainWindow = null;
 
@@ -412,6 +412,8 @@ ipcMain.handle('mc:getDownloadStats', async () => {
 ipcMain.handle('mc:savePresets', async (_e, presets) => saveSettings({ launchPresets: presets }));
 ipcMain.handle('mc:getInstanceIcon', async (_e, versionId) => getInstanceIcon(versionId));
 ipcMain.handle('mc:setInstanceIcon', async (_e, versionId, iconPath) => setInstanceIcon(versionId, iconPath));
+ipcMain.handle('mc:getInstanceBanner', async (_e, versionId) => getInstanceBanner(versionId));
+ipcMain.handle('mc:setInstanceBanner', async (_e, versionId, bannerData) => setInstanceBanner(versionId, bannerData));
 ipcMain.handle('mc:setBgImage', async (_e, pathOrData) => {
   // Store data URL directly, or copy local file to userData
   if (pathOrData && !pathOrData.startsWith('data:')) {

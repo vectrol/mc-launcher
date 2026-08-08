@@ -120,4 +120,41 @@ function getInstanceIcon(versionId) {
   return '';
 }
 
-module.exports = { cloneVersion, renameVersion, getInstanceSettings, setInstanceSettings, setInstanceIcon, getInstanceIcon };
+// ─── Instance banner (header image) ────────────────────────
+
+function setInstanceBanner(versionId, bannerData) {
+  // Accept data URL or file path
+  const destDir = path.join(VERSIONS_DIR, versionId);
+  ensureDir(destDir);
+  let ext = '.png';
+  let buffer;
+  if (bannerData && bannerData.startsWith('data:')) {
+    const m = bannerData.match(/^data:image\/(png|jpe?g|gif);base64,(.+)$/i);
+    if (!m) throw new Error('Invalid image data');
+    ext = m[1].toLowerCase() === 'jpeg' ? '.jpg' : `.${m[1].toLowerCase()}`;
+    buffer = Buffer.from(m[2], 'base64');
+  } else {
+    if (!bannerData || !fs.existsSync(bannerData)) throw new Error('Banner not found');
+    ext = path.extname(bannerData) || '.png';
+    buffer = fs.readFileSync(bannerData);
+  }
+  const dest = path.join(destDir, `instance-banner${ext}`);
+  fs.writeFileSync(dest, buffer);
+  setInstanceSettings(versionId, { banner: `instance-banner${ext}` });
+  return { success: true, banner: `instance-banner${ext}` };
+}
+
+function getInstanceBanner(versionId) {
+  const settings = getInstanceSettings(versionId);
+  const bannerFile = settings.banner;
+  if (!bannerFile) return '';
+  const p = path.join(VERSIONS_DIR, versionId, bannerFile);
+  if (fs.existsSync(p)) {
+    const ext = path.extname(p).toLowerCase();
+    const mime = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : ext === '.gif' ? 'image/gif' : 'image/png';
+    return `data:${mime};base64,${fs.readFileSync(p).toString('base64')}`;
+  }
+  return '';
+}
+
+module.exports = { cloneVersion, renameVersion, getInstanceSettings, setInstanceSettings, setInstanceIcon, getInstanceIcon, setInstanceBanner, getInstanceBanner };

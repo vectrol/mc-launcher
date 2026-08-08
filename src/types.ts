@@ -338,6 +338,8 @@ interface ElectronAPI {
     savePresets: (presets: any[]) => Promise<void>;
     getInstanceIcon: (versionId: string) => Promise<string>;
     setInstanceIcon: (versionId: string, iconPath: string) => Promise<{ success: boolean; icon: string }>;
+    getInstanceBanner: (versionId: string) => Promise<string>;
+    setInstanceBanner: (versionId: string, bannerData: string) => Promise<{ success: boolean; banner: string }>;
     setBgImage: (path: string) => Promise<void>;
     getBgImage: () => Promise<string>;
   };

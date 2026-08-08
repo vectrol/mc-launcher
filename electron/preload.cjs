@@ -134,6 +134,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     savePresets: (presets) => ipcRenderer.invoke('mc:savePresets', presets),
     getInstanceIcon: (versionId) => ipcRenderer.invoke('mc:getInstanceIcon', versionId),
     setInstanceIcon: (versionId, iconPath) => ipcRenderer.invoke('mc:setInstanceIcon', versionId, iconPath),
+    getInstanceBanner: (versionId) => ipcRenderer.invoke('mc:getInstanceBanner', versionId),
+    setInstanceBanner: (versionId, bannerData) => ipcRenderer.invoke('mc:setInstanceBanner', versionId, bannerData),
     setBgImage: (path) => ipcRenderer.invoke('mc:setBgImage', path),
     getBgImage: () => ipcRenderer.invoke('mc:getBgImage'),
   },

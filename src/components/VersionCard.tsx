@@ -28,6 +28,14 @@ function VersionCard({ version, index, isDownloading, isLaunching, isInstalled, 
   const [loaderError, setLoaderError] = useState<string | null>(null);
   const [changelog, setChangelog] = useState<{ summary: string; url: string } | null>(null);
   const [changelogLoading, setChangelogLoading] = useState(false);
+  const [banner, setBanner] = useState('');
+
+  // Load banner for installed versions (lazy on hover)
+  useEffect(() => {
+    if (isInstalled && !banner) {
+      window.electronAPI.mc.getInstanceBanner(version.id).then(b => { if (b) setBanner(b); }).catch(() => {});
+    }
+  }, [isInstalled]);
 
   const date = new Date(version.releaseTime);
   const dateStr = date.toLocaleDateString(navigator.language, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -89,7 +97,14 @@ function VersionCard({ version, index, isDownloading, isLaunching, isInstalled, 
       whileHover={{ y: expanded ? 0 : -2, scale: expanded ? 1 : 1.02 }}
       className="relative group"
     >
-      <div className="p-4 rounded-2xl glass-strong border border-mc-border/60 hover:border-mc-accent/30 transition-all duration-300">
+      <div className="p-4 rounded-2xl glass-strong border border-mc-border/60 hover:border-mc-accent/30 transition-all duration-300 overflow-hidden">
+        {/* Banner for installed versions */}
+        {banner && (
+          <div className="absolute inset-x-0 top-0 h-16 -mt-4 pointer-events-none">
+            <img src={banner} alt="" className="w-full h-full object-cover opacity-40" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-mc-card" />
+          </div>
+        )}
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-mc-accent/0 to-purple-500/0 group-hover:from-mc-accent/3 group-hover:to-purple-500/3 transition-all duration-500 pointer-events-none" />
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-1.5">

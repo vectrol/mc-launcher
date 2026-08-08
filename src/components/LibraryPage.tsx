@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Trash2, Package, FolderOpen, FolderInput, Loader2, Puzzle, ChevronDown, Image as ImageIcon, Archive, Copy, Pencil, Settings as SettingsIcon, X, Star, HardDrive } from 'lucide-react';
+import { Play, Trash2, Package, FolderOpen, FolderInput, Loader2, Puzzle, ChevronDown, Image as ImageIcon, Archive, Copy, Pencil, Settings as SettingsIcon, X, Star, HardDrive, PanelsTopLeft } from 'lucide-react';
 import { InstalledVersion } from '../types';
 import VersionMods from './library/VersionMods';
 import VersionWorlds from './library/VersionWorlds';
@@ -28,6 +28,9 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
   const [icons, setIcons] = useState<Record<string, string>>({});
   const iconRef = useRef<HTMLInputElement>(null);
   const [iconTarget, setIconTarget] = useState('');
+  const [banners, setBanners] = useState<Record<string, string>>({});
+  const bannerRef = useRef<HTMLInputElement>(null);
+  const [bannerTarget, setBannerTarget] = useState('');
 
   useEffect(() => {
     loadVersions();
@@ -52,7 +55,6 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
     const f = e.target.files?.[0];
     if (f && iconTarget) {
       try {
-        // Read file as data URL (works regardless of file.path availability)
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
@@ -65,6 +67,30 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
     }
     setIconTarget('');
     if (iconRef.current) iconRef.current.value = '';
+  }
+
+  async function loadBanner(id: string) {
+    if (banners[id]) return;
+    const b64 = await window.electronAPI.mc.getInstanceBanner(id);
+    if (b64) setBanners(prev => ({ ...prev, [id]: b64 }));
+  }
+
+  async function handleBannerFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (f && bannerTarget) {
+      try {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('read failed'));
+          reader.readAsDataURL(f);
+        });
+        const r = await window.electronAPI.mc.setInstanceBanner(bannerTarget, dataUrl);
+        if (r.success) setBanners(prev => ({ ...prev, [bannerTarget]: dataUrl }));
+      } catch {}
+    }
+    setBannerTarget('');
+    if (bannerRef.current) bannerRef.current.value = '';
   }
 
   useEffect(() => {
@@ -84,6 +110,12 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
     if (sortBy === 'mods') return b.modCount - a.modCount;
     return (b.releaseTime || '').localeCompare(a.releaseTime || '');
   });
+
+  // Preload banners for visible cards (lazy on mount)
+  useEffect(() => {
+    for (const v of sortedVersions.slice(0, 8)) loadBanner(v.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [versions.length]);
 
   async function loadVersions() {
     try { setLoading(true); setVersions(await window.electronAPI.mc.getInstalledVersions()); }
@@ -151,6 +183,13 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
                 transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
                 className="rounded-2xl glass-strong border border-mc-border/60 overflow-hidden"
               >
+                {/* Banner */}
+                {banners[v.id] && (
+                  <div className="relative h-24 shrink-0 cursor-pointer group/banner" onClick={() => setExpandedId(expandedId === v.id ? null : v.id)}>
+                    <img src={banners[v.id]} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-mc-card via-transparent to-transparent" />
+                  </div>
+                )}
                 {/* Header row */}
                 <div className="flex items-center justify-between p-4">
                   <div className="flex items-center gap-4 cursor-pointer select-none flex-1" onClick={() => setExpandedId(expandedId === v.id ? null : v.id)}>
@@ -188,6 +227,10 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
                     <button onClick={() => { setIconTarget(v.id); iconRef.current?.click(); }}
                       className="p-2 rounded-lg text-mc-muted hover:text-mc-accent-hover transition-all" title={t('library.setIcon')}>
                       <ImageIcon size={14} />
+                    </button>
+                    <button onClick={() => { setBannerTarget(v.id); bannerRef.current?.click(); }}
+                      className="p-2 rounded-lg text-mc-muted hover:text-mc-accent-hover transition-all" title={t('library.setBanner')}>
+                      <PanelsTopLeft size={14} />
                     </button>
                     <AnimatePresence>
                       {editMode?.id === v.id ? (
@@ -310,6 +353,7 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
         )}
       </div>
       <input ref={iconRef} type="file" accept=".png,.jpg,.gif" className="hidden" onChange={handleIconFile} />
+      <input ref={bannerRef} type="file" accept=".png,.jpg,.gif,.webp" className="hidden" onChange={handleBannerFile} />
     </div>
   );
 }
