@@ -66,22 +66,150 @@ async function scanJava() {
   return results;
 }
 
-// Recommended Java major for a Minecraft version
+// Extract MC version from any version ID (root or loader)
+function extractMcVersion(versionId) {
+  if (!versionId) return '1.20.1';
+  const segments = (versionId.match(/\d+\.\d+(?:\.\d+)?/g) || []);
+  return segments.filter(s => s.startsWith('1.')).pop() || segments[0] || versionId;
+}
+
+function compareVersionLt(a, b) {
+  const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    if ((pa[i] || 0) < (pb[i] || 0)) return true;
+    if ((pa[i] || 0) > (pb[i] || 0)) return false;
+  }
+  return false;
+}
+
+function compareVersionGte(a, b) {
+  return !compareVersionLt(a, b);
+}
+
+// Recommended Java major for a Minecraft version (simple single-value)
 function recommendedJavaMajor(mcVersion) {
-  if (!mcVersion) return 17;
-  // Extract MC version from loader IDs: fabric-loader-0.19.3-1.20.1 → 1.20.1
-  // Look for the "1.xx" segment, taking the last one
-  const segments = mcVersion.match(/\d+\.\d+(?:\.\d+)?/g) || [];
-  const mcSeg = segments.filter(s => s.startsWith('1.')).pop() || segments[0] || mcVersion;
+  const mcSeg = extractMcVersion(mcVersion);
   const v = mcSeg.split('.');
   if (v.length < 2) return 17;
   const minor = parseInt(v[1]);
-  if (minor >= 21) return 21;
-  if (minor >= 20) return 17;
-  if (minor >= 18) return 17;
-  if (minor >= 17) return 16;
-  if (minor >= 12) return 8;
+  if (minor >= 24) return 21;  // 1.24+
+  if (minor >= 21) return 21;  // 1.21+ needs Java 21
+  if (minor >= 18) return 17;  // 1.18+ needs Java 17
+  if (minor >= 17) return 16;  // 1.17 needs Java 16
+  if (minor >= 12) return 8;   // 1.12+ Java 8
   return 8;
+}
+
+// Full constraint-based Java version range for a version
+// Returns {min, max} — max may be Infinity meaning no upper bound
+// Based on PCL's GetJavaRequirement logic
+function getJavaConstraint(versionId) {
+  const result = { min: 8, max: Infinity };
+  const mcSeg = extractMcVersion(versionId);
+  const mcParts = mcSeg.split('.').map(Number);
+  const minor = mcParts[1] || 20;
+
+  if (!versionId) return { min: 17, max: Infinity };
+
+  // Base vanilla requirements (from Mojang's javaVersion field or heuristic)
+  const VERSIONS_DIR = require('./mc-api.cjs').VERSIONS_DIR;
+  const jsonPath = path.join(VERSIONS_DIR, versionId, `${versionId}.json`);
+  let versionJson = null;
+  if (fs.existsSync(jsonPath)) {
+    try { versionJson = JSON.parse(fs.readFileSync(jsonPath, 'utf-8')); } catch {}
+  }
+
+  // Read Mojang's javaVersion requirement from version JSON
+  if (versionJson?.javaVersion?.majorVersion) {
+    const req = parseInt(versionJson.javaVersion.majorVersion);
+    result.min = Math.max(result.min, req);
+  } else if (minor >= 24) {
+    result.min = 21;
+  } else if (minor >= 21 || (minor === 20 && mcParts[2] >= 5)) {
+    // 1.20.5+ (24w14a+): Java 21
+    result.min = 21;
+  } else if (minor >= 18) {
+    result.min = 17;
+  } else if (minor >= 17) {
+    result.min = 16;
+  } else if (minor >= 12) {
+    result.min = 8;
+  }
+
+  // Detect loaders from version JSON
+  const hasOptiFine = versionJson?.id?.includes('OptiFine') || false;
+  const hasFabric = versionJson?.inheritsFrom || versionId.includes('fabric') || false;
+
+  // Detect Forge/NeoForge from libraries
+  let forgeVer = null, neoVer = null;
+  if (versionJson?.libraries) {
+    for (const lib of versionJson.libraries) {
+      const name = lib.name || '';
+      if (name.startsWith('net.minecraftforge:forge:') || name.startsWith('net.minecraftforge:fmlloader:')) {
+        const m = name.match(/:(\d+\.\d+(?:\.\d+)*)/);
+        if (m) forgeVer = m[1];
+      }
+      if (name.startsWith('net.neoforged:neoforge:')) {
+        const m = name.match(/:(\d+\.\d+(?:\.\d+)*(?:-beta)?)/);
+        if (m) neoVer = m[1];
+      }
+    }
+  }
+
+  // Forge-specific constraints (from PCL testing, see #8432)
+  if (forgeVer) {
+    if (minor <= 12) {
+      // <=1.12: Java 8 max
+      result.max = 8;
+    } else if (minor <= 14) {
+      // 1.13-1.14: Java 8-10
+      result.min = Math.max(result.min, 8);
+      result.max = Math.min(result.max, 10);
+    } else if (minor === 15) {
+      // 1.15: Java 8-15
+      result.min = Math.max(result.min, 8);
+      result.max = Math.min(result.max, 15);
+    } else if (compareVersionGte(forgeVer, '36.2.26') && compareVersionLt(forgeVer, '37.0.0')) {
+      // 1.16.5 Forge 36.2.26+ (<37.0): max Java 23
+      result.max = Math.min(result.max, 23);
+    } else if (compareVersionGte(forgeVer, '34.0.0') && compareVersionLt(forgeVer, '37.0.0')) {
+      // 1.16.3-5 Forge 34.0.0-36.2.25: max Java 8u320
+      result.max = 8;
+    } else if (compareVersionGte(forgeVer, '37.0.0') && compareVersionLt(forgeVer, '37.0.80')) {
+      // 1.17.1 Forge 37.0.0-37.0.79: max Java 16
+      result.max = Math.min(result.max, 16);
+    } else if (minor === 18 && hasOptiFine) {
+      result.max = Math.min(result.max, 18);
+    } else if (compareVersionGte(forgeVer, '45.0.21') && compareVersionLt(forgeVer, '45.0.66')) {
+      // 1.19.4 Forge 45.0.21-45.0.65: max Java 19
+      result.max = Math.min(result.max, 19);
+    } else if (compareVersionGte(forgeVer, '45.0.66') && compareVersionLt(forgeVer, '47.4.9')) {
+      // 1.19.4-1.20.1 Forge 45.0.66-47.4.8: max Java 21
+      result.max = Math.min(result.max, 21);
+    }
+  }
+
+  // NeoForge constraints
+  if (neoVer) {
+    if (compareVersionLt(neoVer, '20.2.62-beta') || minor === 20 && mcParts[2] === 1) {
+      result.max = Math.min(result.max, 21);
+    }
+  }
+
+  // Fabric constraints
+  if (hasFabric) {
+    if (minor >= 15 && minor <= 16) result.min = Math.max(result.min, 8);
+    if (minor >= 18) result.min = Math.max(result.min, 17);
+  }
+
+  // OptiFine constraints
+  if (hasOptiFine) {
+    if (minor < 7) result.max = Math.min(result.max, 8);
+    if (minor >= 8 && minor < 12) { result.min = 8; result.max = 8; }
+    if (minor === 12) result.max = Math.min(result.max, 8);
+  }
+
+  return result;
 }
 
 // ─── Network diagnostics ───────────────────────────────────
@@ -110,4 +238,4 @@ async function runDiagnostics() {
   return { network: results, java: java.slice(0, 3) };
 }
 
-module.exports = { scanJava, recommendedJavaMajor, runDiagnostics };
+module.exports = { scanJava, recommendedJavaMajor, getJavaConstraint, runDiagnostics };

@@ -22,33 +22,37 @@ function findJava(versionId) {
     explicitPath = settings.javaPath;
   }
 
-  // Detect required Java major for THIS version (vs global override)
-  const { recommendedJavaMajor } = require('./mc-java.cjs');
-  const wantMajor = recommendedJavaMajor(versionId);
+  // Detect required Java version range for THIS version
+  const { getJavaConstraint } = require('./mc-java.cjs');
+  const constraint = getJavaConstraint(versionId);
+  const wantMajor = constraint.min;
 
   // If user set an explicit path, validate it matches the version requirement
   if (explicitPath) {
     const actualMajor = getJavaMajorSync(explicitPath);
-    if (actualMajor >= wantMajor) return explicitPath;
-    // Explicit path too old — warn but don't use (fall through to auto-detect)
-    if (versionId) {
-      const { getInstanceSettings } = require('./mc-instances.cjs');
-      const inst = getInstanceSettings(versionId);
-      if (inst.javaPath) logSend(null, `[Java] Instance override Java ${actualMajor} too old for MC ${versionId} (needs >=${wantMajor}), auto-detecting...`);
-      else logSend(null, `[Java] Global Java ${actualMajor} too old for MC ${versionId} (needs >=${wantMajor}), auto-detecting...`);
-    }
+    if (actualMajor >= constraint.min && actualMajor <= constraint.max) return explicitPath;
+    // Explicit path incompatible — warn and fall through to auto-detect
+    const { getInstanceSettings } = require('./mc-instances.cjs');
+    const inst = getInstanceSettings(versionId);
+    const src = inst.javaPath ? 'Instance' : 'Global';
+    logSend(null, `[Java] ${src} Java ${actualMajor} incompatible with ${versionId} (needs ${constraint.min}-${constraint.max === Infinity ? '+' : constraint.max}), auto-detecting...`);
   }
 
   // Auto-detect best JRE
   const { getInstalledJres } = require('./mc-jre.cjs');
   const jres = getInstalledJres();
   if (jres.length > 0) {
-    // Prefer exact major match, else highest >= required
-    const best = jres
-      .filter(j => j.major >= wantMajor)
-      .sort((a, b) => a.major - b.major) // closest to requirement
-      [0] || jres[jres.length - 1]; // fallback to highest
+    // Filter JREs within [min, max] range, prefer closest to min
+    const compatible = jres
+      .filter(j => j.major >= constraint.min && j.major <= constraint.max)
+      .sort((a, b) => a.major - b.major);
+    const best = compatible[0] || jres
+      .filter(j => j.major >= constraint.min)
+      .sort((a, b) => a.major - b.major)[0];
     if (best && best.exists) return best.path;
+    // Last resort: highest JRE even if out of range
+    logSend(null, `[Java] No JRE found within ${constraint.min}-${constraint.max === Infinity ? '+' : constraint.max}, using highest available`);
+    return jres[jres.length - 1].path;
   }
 
   // Last resort: JAVA_HOME
