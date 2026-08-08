@@ -3,7 +3,7 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 const { spawn } = require('child_process');
-const { VERSIONS_DIR, LIBRARIES_DIR, BASE_DIR } = require('./mc-api.cjs');
+const { VERSIONS_DIR, LIBRARIES_DIR, BASE_DIR, logWarn } = require('./mc-api.cjs');
 
 function httpGet(url) {
   return new Promise((resolve, reject) => {
@@ -194,7 +194,7 @@ async function installForge(mcVersion, forgeVersion, onProgress) {
     if (versionEntry) {
       versionData = JSON.parse(versionEntry.getData().toString('utf-8'));
     }
-  } catch {}
+  } catch (e) { logWarn('Mods', 'caught', e) }
 
   if (!versionData) {
     // Try extracting with jar command as fallback
@@ -240,7 +240,7 @@ async function installForge(mcVersion, forgeVersion, onProgress) {
         if (!fs.existsSync(libPath)) {
           try {
             await downloadFile(artifact.url, libPath);
-          } catch {}
+          } catch (e) { logWarn('Mods', 'caught', e) }
         }
       }
       completed++;
@@ -255,7 +255,7 @@ async function installForge(mcVersion, forgeVersion, onProgress) {
   }
 
   // Clean up temp
-  try { fs.unlinkSync(installerPath); } catch {}
+  try { fs.unlinkSync(installerPath); } catch (e) { logWarn('Mods', 'caught', e) }
 
   onProgress({ phase: 'done', message: 'Forge installation complete!', percent: 100 });
   return { versionId, versionData };
@@ -322,7 +322,7 @@ module.exports = {
       const zip = new AdmZip(installerPath);
       const entry = zip.getEntries().find((e) => e.entryName === 'version.json' || e.entryName.endsWith('.json'));
       if (entry) versionData = JSON.parse(entry.getData().toString('utf-8'));
-    } catch {}
+    } catch (e) { logWarn('Mods', 'caught', e) }
 
     if (!versionData) {
       // Fallback: create a simple version JSON manually
@@ -365,7 +365,7 @@ module.exports = {
     }
 
     // Clean up
-    try { fs.unlinkSync(installerPath); } catch {}
+    try { fs.unlinkSync(installerPath); } catch (e) { logWarn('Mods', 'caught', e) }
 
     onProgress({ phase: 'done', message: 'OptiFine installation complete!', percent: 100 });
     return { versionId, versionData };
@@ -404,11 +404,11 @@ module.exports = {
         let c = 0; const t = vd.libraries.length;
         for (const lib of vd.libraries) {
           if (lib.rules) { const a = lib.rules.every(r => r.action === 'allow' ? (!r.os || r.os.name === 'windows') : r.os && r.os.name !== 'windows'); if (!a) continue; }
-          if (lib.downloads?.artifact) { const p = path.join(LIBRARIES_DIR, lib.downloads.artifact.path); if (!fs.existsSync(p)) try { await downloadFile(lib.downloads.artifact.url, p); } catch {} }
+          if (lib.downloads?.artifact) { const p = path.join(LIBRARIES_DIR, lib.downloads.artifact.path); if (!fs.existsSync(p)) try { await downloadFile(lib.downloads.artifact.url, p); } catch (e) { logWarn('Mods', 'caught', e) } }
           c++; onProgress({ phase: 'neoforge', message: `NeoForge libs: ${c}/${t}`, percent: 60 + Math.round((c / t) * 40), current: c, total: t });
         }
       }
-      try { fs.unlinkSync(ip); } catch {}
+      try { fs.unlinkSync(ip); } catch (e) { logWarn('Mods', 'caught', e) }
     }
     const bj = path.join(VERSIONS_DIR, mcVersion, `${mcVersion}.jar`);
     const tj = path.join(versionDir, `${versionId}.jar`);
@@ -437,7 +437,7 @@ module.exports = {
           const [g, a, v] = lib.name.split(':'); if (!g || !a || !v) continue;
           const sp = `${g.replace(/\./g, '/')}/${a}/${v}/${a}-${v}.jar`;
           const dp = path.join(LIBRARIES_DIR, sp);
-          if (!fs.existsSync(dp)) try { await downloadFile((lib.url.endsWith('/') ? lib.url : lib.url + '/') + sp, dp); } catch {}
+          if (!fs.existsSync(dp)) try { await downloadFile((lib.url.endsWith('/') ? lib.url : lib.url + '/') + sp, dp); } catch (e) { logWarn('Mods', 'caught', e) }
         }
         c++; onProgress({ phase: 'quilt', message: `Quilt libs: ${c}/${t}`, percent: Math.round((c / t) * 100), current: c, total: t });
       }

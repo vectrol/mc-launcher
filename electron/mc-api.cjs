@@ -28,11 +28,9 @@ async function getVersionChangelog(versionId) {
       const wikiUrl = `https://minecraft.wiki/w/Java_Edition_${encodeURIComponent(versionId)}`;
       return { summary, url: wikiUrl };
     }
-  } catch {}
+  } catch (e) { logWarn('API', 'getVersionChangelog', e); }
   return null;
 }
-
-let versionManifest = null;
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -67,7 +65,7 @@ function downloadFile(url, destPath, onProgress) {
         return downloadFile(res.headers.location, destPath, onProgress).then(resolve).catch(reject);
       }
       if (res.statusCode >= 400) {
-        try { fs.unlinkSync(destPath); } catch {}
+        try { fs.unlinkSync(destPath); } catch (e) { logWarn('API', 'caught', e) }
         return reject(new Error(`HTTP ${res.statusCode}`));
       }
       const total = parseInt(res.headers['content-length'], 10) || 0;
@@ -91,15 +89,15 @@ function downloadFile(url, destPath, onProgress) {
         }
       });
       res.on('end', () => { ws.end(); resolve(); });
-      res.on('error', (e) => { try { ws.close(); fs.unlinkSync(destPath); } catch {} reject(e); });
+      res.on('error', (e) => { try { ws.close(); fs.unlinkSync(destPath); } catch (e) { logWarn('API', 'caught', e) } reject(e); });
     });
     // Timeout: fail cleanly instead of hanging forever
     req.setTimeout(30000, () => {
       req.destroy(new Error('Download timed out'));
-      try { fs.unlinkSync(destPath); } catch {}
+      try { fs.unlinkSync(destPath); } catch (e) { logWarn('API', 'caught', e) }
     });
     req.on('error', (e) => {
-      try { fs.unlinkSync(destPath); } catch {}
+      try { fs.unlinkSync(destPath); } catch (e) { logWarn('API', 'caught', e) }
       reject(e);
     });
   });
@@ -154,11 +152,11 @@ async function getVersionManifest() {
         versionManifest = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
         return versionManifest;
       }
-    } catch {}
+    } catch (e) { logWarn('API', 'caught', e) }
   }
   versionManifest = await httpGetJSON('https://launchermeta.mojang.com/mc/game/version_manifest.json');
   manifestCacheTime = Date.now();
-  try { ensureDir(BASE_DIR); fs.writeFileSync(cachePath, JSON.stringify(versionManifest)); } catch {}
+  try { ensureDir(BASE_DIR); fs.writeFileSync(cachePath, JSON.stringify(versionManifest)); } catch (e) { logWarn('API', 'caught', e) }
   return versionManifest;
 }
 
@@ -210,7 +208,7 @@ async function downloadVersion(versionId, onProgress, signal) {
     const objects = Object.entries(assetIndex.objects);
     let totalSize = 0;
     let settings = { downloadSource: 'mojang' };
-    try { settings.downloadSource = require('./mc-settings.cjs').loadSettings().downloadSource; } catch {}
+    try { settings.downloadSource = require('./mc-settings.cjs').loadSettings().downloadSource; } catch (e) { logWarn('API', 'caught', e) }
     const assetBase = settings.downloadSource === 'bmclapi'
       ? 'https://bmclapi2.bangbang93.com/assets/'
       : 'https://resources.download.minecraft.net/';
@@ -273,7 +271,7 @@ async function downloadVersion(versionId, onProgress, signal) {
           if (src === 'bmclapi' && url.includes('libraries.minecraft.net')) {
             url = `https://bmclapi2.bangbang93.com/maven/${artifact.path}`;
           }
-        } catch {}
+        } catch (e) { logWarn('API', 'caught', e) }
         await downloadFile(url, libPath);
       }
     });
@@ -334,4 +332,13 @@ async function autoSelectSource() {
   return { best, mojang: mojang.ms, bmclapi: bmcl.ms };
 }
 
-module.exports = { getVersionManifest, getVersionInfo, downloadVersion, getVersionChangelog, autoSelectSource, BASE_DIR, VERSIONS_DIR, ASSETS_DIR, LIBRARIES_DIR, MODS_DIR };
+// Shared logger �?sends warnings to game console + stderr
+let mainWindowRef = null;
+function setMainWindow(win) { mainWindowRef = win; }
+function logWarn(module, context, err) {
+  const msg = `[${module}] ${context}: ${err?.message || err || 'unknown'}`;
+  try { if (mainWindowRef) mainWindowRef.webContents.send('mc:gameLog', msg + '\n'); } catch (e) { logWarn('API', 'caught', e) }
+  console.error(msg);
+}
+
+module.exports = { getVersionManifest, getVersionInfo, downloadVersion, getVersionChangelog, autoSelectSource, setMainWindow, logWarn, BASE_DIR, VERSIONS_DIR, ASSETS_DIR, LIBRARIES_DIR, MODS_DIR };

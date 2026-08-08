@@ -5,8 +5,10 @@ const { BASE_DIR, VERSIONS_DIR, ASSETS_DIR, LIBRARIES_DIR } = require('./mc-api.
 const { getValidAccount } = require('./mc-auth.cjs');
 const { loadSettings, saveSettings, getAutoMemory } = require('./mc-settings.cjs');
 
+const { logWarn } = require('./mc-api.cjs');
+
 function getLauncherVersion() {
-  try { return require('../package.json').version || '2.5.0'; } catch { return '2.5.0'; }
+  try { return require('../package.json').version || '3.1.0'; } catch { return '3.1.0'; }
 }
 
 function findJava(versionId) {
@@ -75,7 +77,7 @@ function getJavaMajorSync(javaExe) {
       const parts = m[1].split('.');
       return parseInt(parts[0]) === 1 ? parseInt(parts[1]) : parseInt(parts[0]);
     }
-  } catch {}
+  } catch (e) { logWarn('Launcher', 'getJavaMajorSync', e); }
   return 0;
 }
 
@@ -415,7 +417,7 @@ function launchGame(versionId, mainWindow) {
         const s = loadSettings();
         const lastPlayed = [versionId, ...(s.lastPlayed || []).filter(x => x !== versionId)].slice(0, 10);
         saveSettings({ lastPlayed });
-      } catch {}
+      } catch (e) { logWarn('Launcher', 'saveLastPlayed', e); }
 
       // Session start for playtime tracking
       const sessionStart = Date.now();
@@ -434,7 +436,7 @@ function launchGame(versionId, mainWindow) {
               }
             }
           });
-        } catch {}
+        } catch (e) { /* monitor sampling error, non-critical */ }
       }, 2000);
       let lastFps = 0;
       const logLineHandler = (line) => {
@@ -490,7 +492,7 @@ function launchGame(versionId, mainWindow) {
             playTime[today] = (playTime[today] || 0) + seconds;
             saveSettings({ playTime });
           }
-        } catch {}
+        } catch (e) { logWarn('Launcher', 'savePlayTime', e); }
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('mc:gameClosed', code);
         }

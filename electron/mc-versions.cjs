@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
-const { VERSIONS_DIR, MODS_DIR } = require('./mc-api.cjs');
+const { VERSIONS_DIR, MODS_DIR, logWarn } = require('./mc-api.cjs');
 
 function getInstalledVersions() {
   if (!fs.existsSync(VERSIONS_DIR)) return [];
@@ -30,13 +30,13 @@ function getInstalledVersions() {
       const data = JSON.parse(fs.readFileSync(path.join(versionDir, jsonFile), 'utf-8'));
 
       if (data.inheritsFrom) {
-        // Child version (Fabric/Forge loader) — group under parent
+        // Child version (Fabric/Forge loader) �?group under parent
         if (!childVersions.has(data.inheritsFrom)) childVersions.set(data.inheritsFrom, []);
         childVersions.get(data.inheritsFrom).push({ id: e.name, json: data });
         continue;
       }
 
-      // Root version (no inheritsFrom) — show as primary
+      // Root version (no inheritsFrom) �?show as primary
       const jarPath = path.join(versionDir, `${e.name}.jar`);
       const modsPath = path.join(versionDir, 'mods');
       const modCount = fs.existsSync(modsPath)
@@ -53,7 +53,7 @@ function getInstalledVersions() {
         parent: '',
         loaders: [], // filled below
       });
-    } catch {}
+    } catch (e) { logWarn('Versions', 'caught', e) }
   }
 
   // Attach loader info to root versions

@@ -47,6 +47,9 @@ function createWindow() {
     show: false,
   });
 
+  const { setMainWindow, logWarn } = require('./mc-api.cjs');
+  setMainWindow(mainWindow);
+
   const isDev = !app.isPackaged;
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');

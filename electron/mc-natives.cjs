@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const AdmZip = require('adm-zip');
-const { VERSIONS_DIR, LIBRARIES_DIR } = require('./mc-api.cjs');
+const { VERSIONS_DIR, LIBRARIES_DIR, logWarn } = require('./mc-api.cjs');
 
 function extractNatives(versionId, versionData) {
   const nativesDir = path.join(VERSIONS_DIR, versionId, 'natives');
@@ -16,7 +16,7 @@ function extractNatives(versionId, versionData) {
     const classifiers = lib.natives;
     if (!classifiers) continue;
 
-    // Get platform-specific classifier (windows → windows, osx → osx, linux → linux)
+    // Get platform-specific classifier (windows �?windows, osx �?osx, linux �?linux)
     let platformKey = null;
     if (classifiers.windows) platformKey = classifiers.windows;
     else if (classifiers.win32) platformKey = classifiers.win32;
@@ -50,7 +50,7 @@ function extractNatives(versionId, versionData) {
           }
         }
       }
-    } catch {}
+    } catch (e) { logWarn('Natives', 'caught', e) }
   }
 }
 

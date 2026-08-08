@@ -1,5 +1,5 @@
 const path = require('path');
-const { VERSIONS_DIR } = require('./mc-api.cjs');
+const { VERSIONS_DIR, logWarn } = require('./mc-api.cjs');
 const { getModrinthVersions, searchModrinth } = require('./mc-online.cjs');
 
 // ─── Mod update detection ──────────────────────────────────
@@ -61,7 +61,7 @@ async function checkModsForUpdates(versionId) {
         hasUpdate: !!isNewer,
         latestFile: latest.files.find(f => f.primary) || latest.files[0],
       });
-    } catch {}
+    } catch (e) { logWarn('Modtools', 'caught', e) }
   }
   return results;
 }
@@ -116,7 +116,7 @@ async function updateAllMods(versionId, onProgress) {
   for (const u of toUpdate) {
     const src = path.join(modsDir, u.fileName);
     if (fs.existsSync(src)) {
-      try { fs.copyFileSync(src, path.join(backupSub, u.fileName)); } catch {}
+      try { fs.copyFileSync(src, path.join(backupSub, u.fileName)); } catch (e) { logWarn('Modtools', 'caught', e) }
     }
   }
 
@@ -171,7 +171,7 @@ module.exports = { checkModsForUpdates, detectModConflicts, updateAllMods,
             depth,
             children: await module.exports.getModDependencyTree(childSlug, depth + 1),
           });
-        } catch {}
+        } catch (e) { logWarn('Modtools', 'caught', e) }
       }
       return tree;
     } catch { return []; }

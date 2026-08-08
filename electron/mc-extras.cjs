@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { BASE_DIR } = require('./mc-api.cjs');
+const { BASE_DIR, logWarn } = require('./mc-api.cjs');
 
 const SAVES_DIR = path.join(BASE_DIR, 'saves');
 const RESOURCE_PACKS_DIR = path.join(BASE_DIR, 'resourcepacks');
@@ -26,7 +26,7 @@ function getWorlds() {
       if (fs.existsSync(iconPath)) {
         meta.icon = iconPath;
       }
-    } catch {}
+    } catch (e) { logWarn('Extras', 'caught', e) }
     return meta;
   }).sort((a, b) => b.lastPlayed - a.lastPlayed);
 }
@@ -39,10 +39,10 @@ function getDirSize(dir) {
       const fp = path.join(dir, f.name);
       if (f.isDirectory()) size += getDirSize(fp);
       else {
-        try { size += fs.statSync(fp).size; } catch {}
+        try { size += fs.statSync(fp).size; } catch (e) { logWarn('Extras', 'caught', e) }
       }
     }
-  } catch {}
+  } catch (e) { logWarn('Extras', 'caught', e) }
   return size;
 }
 
@@ -94,7 +94,7 @@ function getResourcePacks() {
       const stat = fs.statSync(fp);
       meta.size = stat.size;
       meta.isDir = stat.isDirectory();
-    } catch {}
+    } catch (e) { logWarn('Extras', 'caught', e) }
     return meta;
   });
 }

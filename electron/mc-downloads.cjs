@@ -74,7 +74,7 @@ function downloadFileInternal(url, destPath, { onProgress, startByte = 0 } = {})
 
     if (!fs.existsSync(path.dirname(destPath))) fs.mkdirSync(path.dirname(destPath), { recursive: true });
 
-    const headers = { 'User-Agent': 'MCLauncher/3.0' };
+    const headers = { 'User-Agent': 'MCLauncher/3.1' };
     if (startByte > 0) headers.Range = `bytes=${startByte}-`;
 
     const mod = url.startsWith('https') ? https : http;

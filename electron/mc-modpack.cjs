@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const AdmZip = require('adm-zip');
-const { BASE_DIR, VERSIONS_DIR, LIBRARIES_DIR } = require('./mc-api.cjs');
+const { BASE_DIR, VERSIONS_DIR, LIBRARIES_DIR, logWarn } = require('./mc-api.cjs');
 const { importMod } = require('./mc-versions.cjs');
 
 function ensureDir(dir) {
@@ -94,7 +94,7 @@ async function installModpack(pack, onProgress) {
         ensureDir(path.dirname(destPath));
         // Try download via redirect
         await downloadFileWithRedirect(url, destPath);
-      } catch {}
+      } catch (e) { logWarn('Modpack', 'caught', e) }
       completed++;
     }
   } else if (pack.format === 'modrinth') {
@@ -111,7 +111,7 @@ async function installModpack(pack, onProgress) {
             onProgress({ phase: 'modpack', message: `Downloading base MC ${pack.mcVersion}...`, percent: 5 + Math.round(p.percent * 0.2) });
           });
         }
-      } catch {}
+      } catch (e) { logWarn('Modpack', 'caught', e) }
     }
     if (pack.loader && pack.loaderVersion) {
       try {
@@ -124,7 +124,7 @@ async function installModpack(pack, onProgress) {
           if (pack.loader === 'fabric') await installFabric(pack.mcVersion, pack.loaderVersion, (p) => onProgress({ phase: 'modpack', message: 'Installing Fabric...', percent: 30 + Math.round(p.percent * 0.2) }));
           else await installForge(pack.mcVersion, pack.loaderVersion, (p) => onProgress({ phase: 'modpack', message: 'Installing Forge...', percent: 30 + Math.round(p.percent * 0.2) }));
         }
-      } catch {}
+      } catch (e) { logWarn('Modpack', 'caught', e) }
     }
 
     // Download all files to their proper game-dir-relative paths
@@ -139,7 +139,7 @@ async function installModpack(pack, onProgress) {
         if (mod.url) {
           await downloadFileWithRedirect(mod.url, destPath);
         }
-      } catch {}
+      } catch (e) { logWarn('Modpack', 'caught', e) }
       completed++;
     }
 
@@ -153,7 +153,7 @@ async function installModpack(pack, onProgress) {
           const destPath = path.join(versionDir, relPath);
           ensureDir(path.dirname(destPath));
           if (!fs.existsSync(destPath)) {
-            try { pack.zip.extractEntryTo(entry, path.dirname(destPath), false, true); } catch {}
+            try { pack.zip.extractEntryTo(entry, path.dirname(destPath), false, true); } catch (e) { logWarn('Modpack', 'caught', e) }
           }
         }
       }
@@ -170,7 +170,7 @@ async function installModpack(pack, onProgress) {
         const destPath = path.join(versionDir, relPath);
         ensureDir(path.dirname(destPath));
         if (!fs.existsSync(destPath)) {
-          try { pack.zip.extractEntryTo(entry, path.dirname(destPath), false, true); } catch {}
+          try { pack.zip.extractEntryTo(entry, path.dirname(destPath), false, true); } catch (e) { logWarn('Modpack', 'caught', e) }
         }
       }
     }
@@ -216,7 +216,7 @@ async function exportModpack(versionId, format = 'curseforge') {
       if (data.inheritsFrom) mcVersion = data.inheritsFrom;
       if (data.id.includes('fabric')) loader = 'fabric';
       if (data.id.includes('forge')) loader = 'forge';
-    } catch {}
+    } catch (e) { logWarn('Modpack', 'caught', e) }
   }
 
   const packDir = path.join(BASE_DIR, 'exports');

@@ -45,10 +45,22 @@ export default function CrashDetailModal({ crash, onClose, t }: Props) {
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <div className="p-3 rounded-xl bg-mc-red/10 border border-mc-red/20">
             <p className="text-[10px] text-mc-muted uppercase">{t('crash.time')}</p>
-            <p className="text-xs text-mc-text">{crash.time}</p>
+            <p className="text-xs text-mc-text">{crash.time || crash.date}</p>
             <p className="text-[10px] text-mc-muted uppercase mt-2">{t('crash.desc')}</p>
             <p className="text-xs text-mc-red">{crash.description}</p>
           </div>
+
+          {crash.detectedIssues?.length > 0 && (
+            <div className="p-3 rounded-xl bg-mc-amber/10 border border-mc-amber/20">
+              <p className="text-[10px] text-mc-muted uppercase mb-1">{t('crash.suggestions')}</p>
+              {crash.detectedIssues.map((issue: string, i: number) => (
+                <div key={i} className="flex items-start gap-1.5 py-0.5">
+                  <span className="text-[9px] text-mc-amber mt-0.5">&#9679;</span>
+                  <p className="text-[11px] text-mc-text">{issue}</p>
+                </div>
+              ))}
+            </div>
+          )}
 
           {crash.stacktrace && (
             <div>

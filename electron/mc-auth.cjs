@@ -5,6 +5,7 @@ const path = require('path');
 const { URL } = require('url');
 const { shell } = require('electron');
 const { loadSettings, saveSettings } = require('./mc-settings.cjs');
+const { logWarn } = require('./mc-api.cjs');
 
 const MS_CLIENT_ID = '00000000402B5328';
 const MS_REDIRECT_URL = 'http://localhost:49152/auth';
@@ -112,7 +113,7 @@ function downloadFile(url, destPath, onProgress) {
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(path.dirname(destPath))) fs.mkdirSync(path.dirname(destPath), { recursive: true });
     const mod = url.startsWith('https') ? https : http;
-    mod.get(url, { headers: { 'User-Agent': 'MCLauncher/3.0' } }, (res) => {
+    mod.get(url, { headers: { 'User-Agent': 'MCLauncher/3.1' } }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         return downloadFile(res.headers.location, destPath, onProgress).then(resolve).catch(reject);
       }
@@ -138,7 +139,7 @@ async function startMicrosoftLogin(mainWindow) {
 
       if (code) {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end('<h2>登录成功！</h2><p>可以关闭此窗口返回启动器</p><script>setTimeout(()=>window.close(),2000)</script>');
+        res.end('<h2>登录成功�?/h2><p>可以关闭此窗口返回启动器</p><script>setTimeout(()=>window.close(),2000)</script>');
 
         server.close();
 
@@ -208,7 +209,7 @@ async function startMicrosoftLogin(mainWindow) {
         }
       } else {
         res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end('<h2>登录失败</h2><p>未获取到授权码</p>');
+        res.end('<h2>登录失败</h2><p>未获取到授权�?/p>');
         server.close();
         reject(new Error('No auth code received'));
       }
@@ -301,7 +302,7 @@ async function getAuthMeta(serverUrl) {
   const root = serverUrl.replace(/\/+$/, '');
   const metaUrl = `${root}/api/authlib-injector`;
   try {
-    const data = await httpGetJSON(metaUrl, { 'User-Agent': 'MCLauncher/3.0' });
+    const data = await httpGetJSON(metaUrl, { 'User-Agent': 'MCLauncher/3.1' });
     const apiRoot = data.apiRoot || `${root}/api/yggdrasil`;
     return { root, apiRoot, meta: data };
   } catch {
@@ -326,7 +327,7 @@ async function downloadAuthInjector(serverUrl, onProgress) {
     try {
       await downloadFile(url, jarPath, onProgress);
       if (fs.existsSync(jarPath) && fs.statSync(jarPath).size > 100000) return jarPath;
-    } catch {}
+    } catch (e) { logWarn('Auth', 'caught', e) }
   }
   throw new Error('Failed to download authlib-injector');
 }

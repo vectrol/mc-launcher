@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
-const { BASE_DIR } = require('./mc-api.cjs');
+const { BASE_DIR, logWarn } = require('./mc-api.cjs');
 
 // ─── Launcher crash logging ────────────────────────────────
 
@@ -11,7 +11,7 @@ function logError(context, error) {
   try {
     const line = `[${new Date().toISOString()}] [${context}] ${error?.stack || error?.message || error}\n`;
     fs.appendFileSync(LOG_FILE, line);
-  } catch {}
+  } catch (e) { logWarn('Update', 'caught', e) }
 }
 
 function getErrorLog() {
@@ -22,7 +22,7 @@ function getErrorLog() {
 }
 
 function clearErrorLog() {
-  try { fs.writeFileSync(LOG_FILE, ''); } catch {}
+  try { fs.writeFileSync(LOG_FILE, ''); } catch (e) { logWarn('Update', 'caught', e) }
 }
 
 // ─── Self update check ─────────────────────────────────────
@@ -33,8 +33,8 @@ const UPDATE_REPO = process.env.MC_UPDATE_REPO || 'vectrol/mc-launcher';
 function getLocalVersion() {
   try {
     const pkg = require('../package.json');
-    return pkg.version || '2.5.0';
-  } catch { return '2.5.0'; }
+    return pkg.version || '3.1.0';
+  } catch { return '3.1.0'; }
 }
 
 function githubGet(url) {
@@ -171,7 +171,7 @@ function importMinecraftFolder(folderPath) {
   try {
     const versionsIn = fs2.readdirSync(path.join(folderPath, 'versions'));
     mcVersion = versionsIn.find(v => !v.includes('loader')) || versionsIn[0] || '';
-  } catch {}
+  } catch (e) { logWarn('Update', 'caught', e) }
 
   fs2.writeFileSync(path.join(dest, 'modpack.json'), JSON.stringify({
     format: 'imported', name: `${baseName}-import`, source: folderPath, mcVersion,
@@ -180,7 +180,7 @@ function importMinecraftFolder(folderPath) {
   return { success: true, name: `${baseName}-import`, mcVersion };
 }
 
-// Apply update: run installer silently (NSIS /S) — full silent replace
+// Apply update: run installer silently (NSIS /S) �?full silent replace
 function applyUpdate() {
   const updatesDir = path.join(app.getPath('userData'), 'updates');
   if (!fs.existsSync(updatesDir)) return { success: false, error: 'No update downloaded' };

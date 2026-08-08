@@ -1,4 +1,5 @@
 const https = require('https');
+const { logWarn } = require('./mc-api.cjs');
 
 // ─── Mirror support ────────────────────────────────────────
 // official: api.modrinth.com + cdn.modrinth.com
@@ -21,7 +22,7 @@ function cdnBase() {
 
 function httpGetJSON(url) {
   return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': 'MCLauncher/3.0' } }, (res) => {
+    https.get(url, { headers: { 'User-Agent': 'MCLauncher/3.1' } }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         return httpGetJSON(res.headers.location).then(resolve).catch(reject);
       }
@@ -62,7 +63,7 @@ async function getMinecraftNews() {
           url: `https://www.minecraft.net/en-us/article/minecraft-java-edition-${ver.id.replace(/\./g, '-')}`,
           type: 'release',
         });
-      } catch {}
+      } catch (e) { logWarn('Online', 'caught', e) }
     }
 
     // Deduplicate and sort
@@ -202,7 +203,7 @@ async function checkModUpdates(slugs) {
       if (versions.length > 0) {
         results.push({ slug, latest: versions[0].version, latestDate: versions[0].date });
       }
-    } catch {}
+    } catch (e) { logWarn('Online', 'caught', e) }
   }
   return results;
 }

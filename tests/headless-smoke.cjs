@@ -42,7 +42,7 @@ test('all 22 backend modules load without crash (headless)', () => {
           on: () => {},
           whenReady: () => Promise.resolve(),
           getName: () => 'mc-launcher',
-          getVersion: () => '3.0.0',
+          getVersion: () => '3.1.0',
           commandLine: { getSwitchValue: () => '' },
         },
         shell: { openExternal: () => {}, openPath: () => {} },

@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
 const os = require('os');
+const { logWarn } = require('./mc-api.cjs');
 
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'launcher-settings.json');
 
@@ -44,7 +45,7 @@ function loadSettings() {
       const raw = fs.readFileSync(SETTINGS_FILE, 'utf-8');
       return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
     }
-  } catch {}
+  } catch (e) { logWarn('Settings', 'caught', e) }
   return { ...DEFAULT_SETTINGS };
 }
 
