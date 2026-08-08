@@ -111,22 +111,29 @@ function getJavaConstraint(versionId) {
 
   if (!versionId) return { min: 17, max: Infinity };
 
-  // Base vanilla requirements (from Mojang's javaVersion field or heuristic)
   const VERSIONS_DIR = require('./mc-api.cjs').VERSIONS_DIR;
+
+  // Read version JSON — if this is a loader version (inheritsFrom), merge with parent
+  let versionJson = null, parentJson = null;
   const jsonPath = path.join(VERSIONS_DIR, versionId, `${versionId}.json`);
-  let versionJson = null;
   if (fs.existsSync(jsonPath)) {
     try { versionJson = JSON.parse(fs.readFileSync(jsonPath, 'utf-8')); } catch {}
   }
+  // If this version inherits from a parent (Fabric/Forge loader), read parent too
+  if (versionJson?.inheritsFrom) {
+    const parentPath = path.join(VERSIONS_DIR, versionJson.inheritsFrom, `${versionJson.inheritsFrom}.json`);
+    if (fs.existsSync(parentPath)) {
+      try { parentJson = JSON.parse(fs.readFileSync(parentPath, 'utf-8')); } catch {}
+    }
+  }
 
   // Read Mojang's javaVersion requirement from version JSON
-  if (versionJson?.javaVersion?.majorVersion) {
-    const req = parseInt(versionJson.javaVersion.majorVersion);
-    result.min = Math.max(result.min, req);
+  const javaReq = versionJson?.javaVersion?.majorVersion || parentJson?.javaVersion?.majorVersion;
+  if (javaReq) {
+    result.min = Math.max(result.min, parseInt(javaReq));
   } else if (minor >= 24) {
     result.min = 21;
   } else if (minor >= 21 || (minor === 20 && mcParts[2] >= 5)) {
-    // 1.20.5+ (24w14a+): Java 21
     result.min = 21;
   } else if (minor >= 18) {
     result.min = 17;
@@ -136,62 +143,57 @@ function getJavaConstraint(versionId) {
     result.min = 8;
   }
 
-  // Detect loaders from version JSON
-  const hasOptiFine = versionJson?.id?.includes('OptiFine') || false;
-  const hasFabric = versionJson?.inheritsFrom || versionId.includes('fabric') || false;
+  // Detect loaders from combined libraries (version + parent)
+  const allLibs = [
+    ...(versionJson?.libraries || []),
+    ...(parentJson?.libraries || []),
+  ];
 
-  // Detect Forge/NeoForge from libraries
+  const hasOptiFine = (versionJson?.id || '').includes('OptiFine') ||
+                      (parentJson?.id || '').includes('OptiFine');
+  const hasFabric = !!(versionJson?.inheritsFrom) || versionId.includes('fabric');
+  const hasLiteLoader = (versionJson?.id || '').includes('LiteLoader') ||
+                        (parentJson?.id || '').includes('LiteLoader');
+
   let forgeVer = null, neoVer = null;
-  if (versionJson?.libraries) {
-    for (const lib of versionJson.libraries) {
-      const name = lib.name || '';
-      if (name.startsWith('net.minecraftforge:forge:') || name.startsWith('net.minecraftforge:fmlloader:')) {
-        const m = name.match(/:(\d+\.\d+(?:\.\d+)*)/);
-        if (m) forgeVer = m[1];
-      }
-      if (name.startsWith('net.neoforged:neoforge:')) {
-        const m = name.match(/:(\d+\.\d+(?:\.\d+)*(?:-beta)?)/);
-        if (m) neoVer = m[1];
-      }
+  for (const lib of allLibs) {
+    const name = typeof lib === 'string' ? lib : (lib.name || '');
+    if (name.startsWith('net.minecraftforge:forge:') || name.startsWith('net.minecraftforge:fmlloader:')) {
+      const m = name.match(/:(\d+\.\d+(?:\.\d+)*)/);
+      if (m) forgeVer = m[1];
+    }
+    if (name.startsWith('net.neoforged:neoforge:') || name.startsWith('net.neoforged:fmlloader:')) {
+      const m = name.match(/:(\d+\.\d+(?:\.\d+)*(?:-beta)?)/);
+      if (m) neoVer = m[1];
     }
   }
 
-  // Forge-specific constraints (from PCL testing, see #8432)
+  // Forge-specific constraints
   if (forgeVer) {
     if (minor <= 12) {
-      // <=1.12: Java 8 max
       result.max = 8;
     } else if (minor <= 14) {
-      // 1.13-1.14: Java 8-10
-      result.min = Math.max(result.min, 8);
-      result.max = Math.min(result.max, 10);
+      result.min = 8; result.max = Math.min(result.max, 10);
     } else if (minor === 15) {
-      // 1.15: Java 8-15
-      result.min = Math.max(result.min, 8);
-      result.max = Math.min(result.max, 15);
+      result.min = 8; result.max = Math.min(result.max, 15);
     } else if (compareVersionGte(forgeVer, '36.2.26') && compareVersionLt(forgeVer, '37.0.0')) {
-      // 1.16.5 Forge 36.2.26+ (<37.0): max Java 23
       result.max = Math.min(result.max, 23);
     } else if (compareVersionGte(forgeVer, '34.0.0') && compareVersionLt(forgeVer, '37.0.0')) {
-      // 1.16.3-5 Forge 34.0.0-36.2.25: max Java 8u320
       result.max = 8;
     } else if (compareVersionGte(forgeVer, '37.0.0') && compareVersionLt(forgeVer, '37.0.80')) {
-      // 1.17.1 Forge 37.0.0-37.0.79: max Java 16
       result.max = Math.min(result.max, 16);
     } else if (minor === 18 && hasOptiFine) {
       result.max = Math.min(result.max, 18);
     } else if (compareVersionGte(forgeVer, '45.0.21') && compareVersionLt(forgeVer, '45.0.66')) {
-      // 1.19.4 Forge 45.0.21-45.0.65: max Java 19
       result.max = Math.min(result.max, 19);
     } else if (compareVersionGte(forgeVer, '45.0.66') && compareVersionLt(forgeVer, '47.4.9')) {
-      // 1.19.4-1.20.1 Forge 45.0.66-47.4.8: max Java 21
       result.max = Math.min(result.max, 21);
     }
   }
 
   // NeoForge constraints
   if (neoVer) {
-    if (compareVersionLt(neoVer, '20.2.62-beta') || minor === 20 && mcParts[2] === 1) {
+    if (compareVersionLt(neoVer, '20.2.62-beta') || (minor === 20 && mcParts[2] === 1)) {
       result.max = Math.min(result.max, 21);
     }
   }
@@ -207,6 +209,11 @@ function getJavaConstraint(versionId) {
     if (minor < 7) result.max = Math.min(result.max, 8);
     if (minor >= 8 && minor < 12) { result.min = 8; result.max = 8; }
     if (minor === 12) result.max = Math.min(result.max, 8);
+  }
+
+  // LiteLoader constraints
+  if (hasLiteLoader) {
+    result.max = Math.min(result.max, 8);
   }
 
   return result;
