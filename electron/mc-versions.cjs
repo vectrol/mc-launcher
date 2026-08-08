@@ -6,40 +6,78 @@ const { VERSIONS_DIR, MODS_DIR } = require('./mc-api.cjs');
 function getInstalledVersions() {
   if (!fs.existsSync(VERSIONS_DIR)) return [];
   const entries = fs.readdirSync(VERSIONS_DIR, { withFileTypes: true });
-  return entries
-    .filter((e) => e.isDirectory())
-    .map((e) => {
-      const versionDir = path.join(VERSIONS_DIR, e.name);
-      const jsonPath = path.join(versionDir, `${e.name}.json`);
-      let meta = { type: 'unknown', releaseTime: '', isModded: false, parent: '' };
-      if (fs.existsSync(jsonPath)) {
-        try {
-          const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
-          meta.type = data.type || 'custom';
-          if (data.inheritsFrom) {
-            meta.isModded = true;
-            meta.parent = data.inheritsFrom;
-            meta.type = data.type || 'release';
-          }
-          meta.releaseTime = data.releaseTime || '';
-        } catch {}
+
+  const allVersions = [];
+  const childVersions = new Map(); // parentId -> [{id, json}]
+
+  for (const e of entries) {
+    if (!e.isDirectory()) continue;
+    const versionDir = path.join(VERSIONS_DIR, e.name);
+    const jsonFile = fs.readdirSync(versionDir).find(f => f.endsWith('.json'));
+    if (!jsonFile) {
+      // Directory without version JSON - might be a modpack folder
+      const mpJson = path.join(versionDir, 'modpack.json');
+      if (fs.existsSync(mpJson)) {
+        allVersions.push({
+          id: e.name, type: 'modpack', releaseTime: '', hasJar: false, modCount: 0,
+          isModded: false, parent: '', loaders: [],
+        });
       }
+      continue;
+    }
+
+    try {
+      const data = JSON.parse(fs.readFileSync(path.join(versionDir, jsonFile), 'utf-8'));
+
+      if (data.inheritsFrom) {
+        // Child version (Fabric/Forge loader) — group under parent
+        if (!childVersions.has(data.inheritsFrom)) childVersions.set(data.inheritsFrom, []);
+        childVersions.get(data.inheritsFrom).push({ id: e.name, json: data });
+        continue;
+      }
+
+      // Root version (no inheritsFrom) — show as primary
       const jarPath = path.join(versionDir, `${e.name}.jar`);
-      const hasJar = fs.existsSync(jarPath);
       const modsPath = path.join(versionDir, 'mods');
       const modCount = fs.existsSync(modsPath)
         ? fs.readdirSync(modsPath).filter((f) => f.endsWith('.jar')).length
         : 0;
-      return {
+
+      allVersions.push({
         id: e.name,
-        type: meta.type,
-        releaseTime: meta.releaseTime,
-        hasJar,
+        type: data.type || 'release',
+        releaseTime: data.releaseTime || '',
+        hasJar: fs.existsSync(jarPath),
         modCount,
-        isModded: meta.isModded,
-        parent: meta.parent,
-      };
+        isModded: false,
+        parent: '',
+        loaders: [], // filled below
+      });
+    } catch {}
+  }
+
+  // Attach loader info to root versions
+  for (const v of allVersions) {
+    const children = childVersions.get(v.id) || [];
+    v.loaders = children.map(c => {
+      let type = 'custom';
+      if (c.id.includes('fabric')) type = 'fabric';
+      else if (c.id.includes('neo') && c.id.includes('forge')) type = 'neoforge';
+      else if (c.id.includes('forge')) type = 'forge';
+      else if (c.id.includes('quilt')) type = 'quilt';
+      else if (c.id.includes('optifine')) type = 'optifine';
+      return { type, id: c.id };
     });
+    // Count mods in loader versions too
+    for (const c of children) {
+      const mp = path.join(VERSIONS_DIR, c.id, 'mods');
+      if (fs.existsSync(mp)) {
+        v.modCount += fs.readdirSync(mp).filter(f => f.endsWith('.jar') || f.endsWith('.disabled')).length;
+      }
+    }
+  }
+
+  return allVersions;
 }
 
 function deleteVersion(versionId) {

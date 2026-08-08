@@ -33,6 +33,8 @@ export default function LibraryPage({ onLaunch, onDeleted, installingId, t }: Pr
   const bannerRef = useRef<HTMLInputElement>(null);
   const [bannerTarget, setBannerTarget] = useState('');
   const [bannerMsg, setBannerMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [loaderMenu, setLoaderMenu] = useState<string | null>(null);
+  const loaderMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadVersions();
@@ -228,11 +230,13 @@ export default function LibraryPage({ onLaunch, onDeleted, installingId, t }: Pr
                       </h3>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-mc-accent/10 text-mc-accent-hover font-semibold">
-                          {v.isModded ? v.type : t(v.type === 'release' ? 'card.release' : v.type === 'snapshot' ? 'card.snapshot' : 'card.custom')}
+                          {t(v.type === 'release' ? 'card.release' : v.type === 'snapshot' ? 'card.snapshot' : v.type === 'modpack' ? 'card.modpack' : 'card.custom')}
                         </span>
-                        {v.isModded && v.parent && (
-                          <span className="text-[9px] text-mc-muted">鈫?{v.parent}</span>
-                        )}
+                        {v.loaders?.map(l => (
+                          <span key={l.id} className="text-[8px] px-1.5 py-0.5 rounded bg-mc-green/10 text-mc-green border border-mc-green/15 font-semibold">
+                            {l.type === 'fabric' ? 'Fabric' : l.type === 'forge' ? 'Forge' : l.type === 'neoforge' ? 'NeoForge' : l.type === 'quilt' ? 'Quilt' : l.type === 'optifine' ? 'OptiFine' : l.type}
+                          </span>
+                        ))}
                         {v.modCount > 0 && <span className="text-[10px] text-mc-muted flex items-center gap-1"><Puzzle size={10} />{v.modCount}</span>}
                       </div>
                     </div>
@@ -306,10 +310,39 @@ export default function LibraryPage({ onLaunch, onDeleted, installingId, t }: Pr
                           className="p-2 rounded-lg hover:bg-mc-red/10 text-mc-muted hover:text-mc-red transition-all"><Trash2 size={16} /></motion.button>
                       )}
                     </AnimatePresence>
-                    <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => onLaunch(v.id)}
-                      className="px-4 py-2 rounded-xl bg-mc-green hover:bg-mc-green/80 text-white text-sm font-medium transition-all shadow-lg shadow-mc-green/20 flex items-center gap-1.5">
-                      <Play size={14} /> {t('card.launch')}
-                    </motion.button>
+                    {v.loaders && v.loaders.length > 0 ? (
+                      <div className="relative" ref={loaderMenu === v.id ? loaderMenuRef : undefined}>
+                        <div className="flex rounded-xl overflow-hidden shadow-lg shadow-mc-green/20">
+                          <motion.button whileTap={{ scale: 0.97 }} onClick={() => onLaunch(v.loaders![0]!.id)}
+                            className="pl-3.5 pr-2 py-2 bg-mc-green hover:bg-mc-green/80 text-white text-sm font-medium transition-all flex items-center gap-1">
+                            <Play size={14} /><span className="text-[9px] uppercase opacity-80">{v.loaders![0]!.type}</span>
+                          </motion.button>
+                          <button onClick={() => setLoaderMenu(loaderMenu === v.id ? null : v.id)}
+                            className="px-2 py-2 bg-mc-green hover:bg-mc-green/80 text-white/70 hover:text-white border-l border-white/20 transition-colors">
+                            <ChevronDown size={12} />
+                          </button>
+                        </div>
+                        {loaderMenu === v.id && (
+                          <div className="absolute right-0 top-full mt-1 bg-mc-card border border-mc-border rounded-xl shadow-xl z-50 min-w-[160px] overflow-hidden">
+                            {v.loaders.map(l => (
+                              <button key={l.id} onClick={() => { onLaunch(l.id); setLoaderMenu(null); }}
+                                className="w-full px-3 py-2 text-left text-xs text-mc-text hover:bg-mc-green/10 flex items-center gap-2">
+                                <Play size={10} className="text-mc-green" />{l.type === 'fabric' ? 'Fabric' : l.type === 'forge' ? 'Forge' : l.type === 'neoforge' ? 'NeoForge' : l.type}
+                              </button>
+                            ))}
+                            <button onClick={() => { onLaunch(v.id); setLoaderMenu(null); }}
+                              className="w-full px-3 py-2 text-left text-xs text-mc-muted hover:bg-mc-card/50 border-t border-mc-border/50 flex items-center gap-2">
+                              <Play size={10} />{t('card.vanillaLaunch')}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => onLaunch(v.id)}
+                        className="px-4 py-2 rounded-xl bg-mc-green hover:bg-mc-green/80 text-white text-sm font-medium transition-all shadow-lg shadow-mc-green/20 flex items-center gap-1.5">
+                        <Play size={14} /> {t('card.launch')}
+                      </motion.button>
+                    )}
                   </div>
                 </div>
 

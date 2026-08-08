@@ -31,6 +31,7 @@ export interface InstalledVersion {
   modCount: number;
   isModded?: boolean;
   parent?: string;
+  loaders?: { type: string; id: string }[];
 }
 
 export interface ModInfo {
