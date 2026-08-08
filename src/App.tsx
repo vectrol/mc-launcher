@@ -58,16 +58,6 @@ function LauncherApp() {
   const [splashStatus, setSplashStatus] = useState('');
   const [crashDetail, setCrashDetail] = useState<any>(null);
 
-  // Listen for game logs during launch
-  useEffect(() => {
-    window.electronAPI.mc.onGameLog((data: string) => {
-      // Only hide splash for actual game output, not launcher diagnostics
-      if (!data.includes('[Launcher]') && !data.includes('[Java]')) {
-        setSplashVisible(false);
-      }
-    });
-  }, []);
-
   const t = (key: string, ...args: (string | number)[]) => {
     const dict = translations[lang] || translations['zh-CN'];
     const val = dict[key] ?? translations['en-US'][key] ?? key;
