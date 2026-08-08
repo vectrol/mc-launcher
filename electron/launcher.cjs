@@ -20,6 +20,19 @@ function findJava(versionId) {
   if (settings.javaPath && fs.existsSync(settings.javaPath)) {
     return settings.javaPath;
   }
+  // Auto-match installed JRE to MC version (most compatible)
+  if (versionId) {
+    const { recommendedJavaMajor } = require('./mc-java.cjs');
+    const wantMajor = recommendedJavaMajor(versionId);
+    const { getInstalledJres } = require('./mc-jre.cjs');
+    const jres = getInstalledJres();
+    if (jres.length > 0) {
+      // Prefer exact major match, else highest available
+      const exact = jres.find(j => j.name.includes(`-${wantMajor}.`) || j.name.includes(`jre-${wantMajor}`));
+      const pick = exact || jres[0];
+      if (pick.exists) return pick.path;
+    }
+  }
   const javaHome = process.env.JAVA_HOME;
   if (javaHome) {
     const exe = path.join(javaHome, 'bin', 'javaw.exe');
@@ -217,6 +230,28 @@ function buildClasspath(merged) {
   return cp.join(';');
 }
 
+// Download missing libraries for a version (auto-repair before blocking launch)
+async function repairMissingLibs(childData, missingLibs, onProgress) {
+  const { downloadFile } = require('./mc-api.cjs');
+  let repaired = 0, failed = 0;
+  for (const lib of childData.libraries || []) {
+    if (!lib.downloads?.artifact) continue;
+    const path = lib.downloads.artifact.path;
+    if (!missingLibs.some(m => m.includes(path) || path.includes(m))) continue;
+    const dest = path.join(LIBRARIES_DIR, path);
+    if (fs.existsSync(dest)) continue;
+    try {
+      await downloadFile(lib.downloads.artifact.url, dest, (p) => onProgress?.({
+        phase: 'repair',
+        message: `Repairing library: ${path.split('/').pop()}`,
+        percent: Math.round(p.percent * 0.95),
+      }));
+      repaired++;
+    } catch { failed++; }
+  }
+  return { repaired, failed };
+}
+
 function launchGame(versionId, mainWindow) {
   return new Promise(async (resolve, reject) => {
     try {
@@ -226,6 +261,19 @@ function launchGame(versionId, mainWindow) {
       }
 
       const merged = mergeVersions(childData);
+      // Auto-repair missing libraries if version is incomplete
+      try {
+        buildClasspath(merged); // throws if >50% missing
+      } catch (err) {
+        if (err.missingLibs?.length > 0) {
+          const { repaired, failed } = await repairMissingLibs(childData, err.missingLibs, (p) => {
+            mainWindow?.webContents.send('mc:gameLog', `[Launcher] ${p.message}\n`);
+          });
+          if (repaired > 0) {
+            mainWindow?.webContents.send('mc:gameLog', `[Launcher] Repaired ${repaired} missing libraries (${failed} failed)\n`);
+          }
+        }
+      }
       const settings = loadSettings();
       const { getInstanceSettings } = require('./mc-instances.cjs');
       const instSettings = getInstanceSettings(versionId);

@@ -134,6 +134,11 @@ function LauncherApp() {
   }
 
   async function handleInstall(versionId: string, variant: 'vanilla' | 'fabric' | 'forge' | 'optifine' | 'neoforge' | 'quilt', loaderVersion?: string) {
+    // Prevent concurrent version downloads (shared libraries/assets would conflict)
+    if (downloading) {
+      toast(t('notify.busy'), 'warning');
+      return;
+    }
     try {
       setDownloading(versionId);
       setDownloadProgress(null);
@@ -192,7 +197,14 @@ function LauncherApp() {
       }
     } catch (e: any) {
       setSplashVisible(false);
-      setError(e.message || t('error.launch'));
+      const msg = e.message || t('error.launch');
+      setError(msg);
+      // Show launch failure prominently + hint to re-download if incomplete
+      if (msg.includes('incomplete') || msg.includes('Classpath')) {
+        toast(`${msg} — ${t('notify.redownload')}`, 'error');
+      } else {
+        toast(msg, 'error');
+      }
     } finally {
       setLaunching(null);
     }
