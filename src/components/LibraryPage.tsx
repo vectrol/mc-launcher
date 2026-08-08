@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Trash2, Package, FolderOpen, FolderInput, Loader2, Puzzle, ChevronDown, Image as ImageIcon, Archive, Copy, Pencil, Settings as SettingsIcon, X, Star, HardDrive, PanelsTopLeft, Camera } from 'lucide-react';
 import { InstalledVersion } from '../types';
@@ -311,8 +312,8 @@ export default function LibraryPage({ onLaunch, onDeleted, installingId, t }: Pr
                       )}
                     </AnimatePresence>
                     {v.loaders && v.loaders.length > 0 ? (
-                      <div className="relative" ref={loaderMenu === v.id ? loaderMenuRef : undefined}>
-                        <div className="flex rounded-xl overflow-hidden shadow-lg shadow-mc-green/20">
+                      <div className="relative">
+                        <div className="flex rounded-xl overflow-hidden shadow-lg shadow-mc-green/20" ref={loaderMenuRef}>
                           <motion.button whileTap={{ scale: 0.97 }} onClick={() => onLaunch(v.loaders![0]!.id)}
                             className="pl-3.5 pr-2 py-2 bg-mc-green hover:bg-mc-green/80 text-white text-sm font-medium transition-all flex items-center gap-1">
                             <Play size={14} /><span className="text-[9px] uppercase opacity-80">{v.loaders![0]!.type}</span>
@@ -322,8 +323,15 @@ export default function LibraryPage({ onLaunch, onDeleted, installingId, t }: Pr
                             <ChevronDown size={12} />
                           </button>
                         </div>
-                        {loaderMenu === v.id && (
-                          <div className="absolute right-0 top-full mt-1 bg-mc-card border border-mc-border rounded-xl shadow-xl z-50 min-w-[160px] overflow-hidden">
+                        {loaderMenu === v.id && createPortal(
+                          <div
+                            className="fixed bg-mc-card border border-mc-border rounded-xl shadow-xl z-[110] min-w-[160px] overflow-hidden"
+                            style={{
+                              top: (loaderMenuRef.current?.getBoundingClientRect().bottom ?? 0) + 4,
+                              right: window.innerWidth - (loaderMenuRef.current?.getBoundingClientRect().right ?? 0),
+                            }}
+                            onClick={() => setLoaderMenu(null)}
+                          >
                             {v.loaders.map(l => (
                               <button key={l.id} onClick={() => { onLaunch(l.id); setLoaderMenu(null); }}
                                 className="w-full px-3 py-2 text-left text-xs text-mc-text hover:bg-mc-green/10 flex items-center gap-2">
@@ -334,7 +342,8 @@ export default function LibraryPage({ onLaunch, onDeleted, installingId, t }: Pr
                               className="w-full px-3 py-2 text-left text-xs text-mc-muted hover:bg-mc-card/50 border-t border-mc-border/50 flex items-center gap-2">
                               <Play size={10} />{t('card.vanillaLaunch')}
                             </button>
-                          </div>
+                          </div>,
+                          document.body
                         )}
                       </div>
                     ) : (

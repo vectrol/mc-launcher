@@ -116,17 +116,28 @@ function validateVersion(versionId) {
   const jarPath = path.join(versionDir, `${versionId}.jar`);
 
   if (!fs.existsSync(jsonPath)) return { valid: false, error: `Version JSON not found: ${jsonPath}` };
-  if (!fs.existsSync(jarPath)) return { valid: false, error: `Version JAR not found: ${jarPath}. Download the version first.` };
 
-  // Check inheritance: if version inherits from another, ensure parent exists
+  // Check JAR — walk inheritsFrom chain if needed (Fabric/Forge inherit parent JAR)
+  function findJarPath(vid) {
+    const direct = path.join(VERSIONS_DIR, vid, `${vid}.jar`);
+    if (fs.existsSync(direct)) return { jar: direct, id: vid };
+    const jp = path.join(VERSIONS_DIR, vid, `${vid}.json`);
+    if (!fs.existsSync(jp)) return null;
+    try {
+      const data = JSON.parse(fs.readFileSync(jp, 'utf-8'));
+      if (data.inheritsFrom) return findJarPath(data.inheritsFrom);
+    } catch {}
+    return null;
+  }
+  const jarResult = findJarPath(versionId);
+  if (!jarResult) return { valid: false, error: `Version JAR not found: ${jarPath}. Re-download recommended.` };
+
+  // Check inheritance: ensure parent version JSON exists
   try {
     const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
     if (data.inheritsFrom) {
-      const parentDir = path.join(VERSIONS_DIR, data.inheritsFrom);
-      const parentJson = path.join(parentDir, `${data.inheritsFrom}.json`);
-      const parentJar = path.join(parentDir, `${data.inheritsFrom}.jar`);
-      if (!fs.existsSync(parentJson)) return { valid: false, error: `Parent version ${data.inheritsFrom} not found. Please download ${data.inheritsFrom} first.` };
-      if (!fs.existsSync(parentJar)) return { valid: false, error: `Parent version JAR not found. Please re-download ${data.inheritsFrom}.` };
+      const parentJson = path.join(VERSIONS_DIR, data.inheritsFrom, `${data.inheritsFrom}.json`);
+      if (!fs.existsSync(parentJson)) return { valid: false, error: `Parent version ${data.inheritsFrom} JSON not found. Please download ${data.inheritsFrom} first.` };
     }
   } catch {}
 

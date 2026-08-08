@@ -68,11 +68,15 @@ function LauncherApp() {
     loadManifest();
     refreshInstalled();
     loadSettings();
-    const unsub = window.electronAPI.mc.onDownloadProgress((data: DownloadProgress) => {
+    // Auto-refresh installed versions every 8 seconds
+    const refreshTimer = setInterval(refreshInstalled, 8000);
+    // Also refresh on download complete (from main process)
+    window.electronAPI.mc.onDownloadProgress((data: DownloadProgress) => {
       setDownloadProgress(data);
+      if (data.phase === 'done') refreshInstalled();
     });
     // Hide splash on first game log (game started)
-    const unsubLog = window.electronAPI.mc.onGameLog(() => {
+    window.electronAPI.mc.onGameLog(() => {
       setSplashVisible(false);
     });
     // Keyboard shortcuts
@@ -89,7 +93,7 @@ function LauncherApp() {
       if (e.key === 'Escape') setError(null);
     };
     window.addEventListener('keydown', handleKey);
-    return () => { window.removeEventListener('keydown', handleKey); unsub; unsubLog; };
+    return () => { clearInterval(refreshTimer); window.removeEventListener('keydown', handleKey); };
   }, []);
 
   // Auto-hide download panel when done (after 5 seconds)
