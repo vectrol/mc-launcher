@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Globe, Library, Settings, Menu, X, RefreshCw, Play, ChevronRight, ShoppingBag, Globe2, Camera, Users } from 'lucide-react';
+import { Home, Globe, Library, Settings, Menu, X, RefreshCw, Play, ChevronRight, ShoppingBag, Globe2, Users } from 'lucide-react';
 import TitleBar from './components/TitleBar';
 import DownloadPanel from './components/DownloadPanel';
 import AccountPanel from './components/AccountPanel';
@@ -22,9 +22,9 @@ const ModBrowser = lazy(() => import('./components/ModBrowser'));
 const ServerList = lazy(() => import('./components/ServerList'));
 const FriendPanel = lazy(() => import('./components/FriendPanel'));
 const SettingsPanel = lazy(() => import('./components/SettingsPanel'));
-const ScreenshotsPanel = lazy(() => import('./components/ScreenshotsPanel'));
+// Screenshots integrated into Library page sub-tabs
 
-type Page = 'home' | 'versions' | 'library' | 'modBrowser' | 'servers' | 'friends' | 'screenshots' | 'settings';
+type Page = 'home' | 'versions' | 'library' | 'modBrowser' | 'servers' | 'friends' | 'settings';
 
 export default function App() {
   return (
@@ -240,7 +240,6 @@ function LauncherApp() {
     { id: 'modBrowser', label: t('nav.modBrowser'), icon: ShoppingBag },
     { id: 'servers', label: t('servers.title'), icon: Globe2 },
     { id: 'friends', label: t('friends.title'), icon: Users },
-    { id: 'screenshots', label: t('shots.title'), icon: Camera },
     { id: 'settings', label: t('nav.settings'), icon: Settings },
   ];
 
@@ -387,17 +386,12 @@ function LauncherApp() {
                 <ServerList t={t} />
               </motion.div>
             ) : activePage === 'friends' ? (
-              <motion.div key="friends" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
+              <motion.div key="friends" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
                 transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <FriendPanel t={t} installedList={installedList} />
               </motion.div>
-            ) : activePage === 'screenshots' ? (
-              <motion.div key="screenshots" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
-                <ScreenshotsPanel t={t} />
-              </motion.div>
             ) : (
-              <motion.div key="settings" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
+              <motion.div key="settings" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
                 transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <SettingsPanel t={t} />
               </motion.div>

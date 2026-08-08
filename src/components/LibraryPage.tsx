@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Trash2, Package, FolderOpen, FolderInput, Loader2, Puzzle, ChevronDown, Image as ImageIcon, Archive, Copy, Pencil, Settings as SettingsIcon, X, Star, HardDrive, PanelsTopLeft } from 'lucide-react';
+import { Play, Trash2, Package, FolderOpen, FolderInput, Loader2, Puzzle, ChevronDown, Image as ImageIcon, Archive, Copy, Pencil, Settings as SettingsIcon, X, Star, HardDrive, PanelsTopLeft, Camera } from 'lucide-react';
 import { InstalledVersion } from '../types';
 import VersionMods from './library/VersionMods';
 import VersionWorlds from './library/VersionWorlds';
@@ -14,7 +14,7 @@ interface Props {
   t: (key: string, ...args: (string | number)[]) => string;
 }
 
-type SubTab = 'mods' | 'worlds' | 'rpacks' | 'settings';
+type SubTab = 'mods' | 'worlds' | 'rpacks' | 'screenshots' | 'settings';
 
 export default function LibraryPage({ onLaunch, onDeleted, installingId, t }: Props) {
   const [versions, setVersions] = useState<InstalledVersion[]>([]);
@@ -330,6 +330,7 @@ export default function LibraryPage({ onLaunch, onDeleted, installingId, t }: Pr
                             { k: 'mods' as SubTab, icon: Puzzle, label: t('mods.title') },
                             { k: 'worlds' as SubTab, icon: HardDrive, label: t('worlds.title') },
                             { k: 'rpacks' as SubTab, icon: ImageIcon, label: t('rp.title') },
+                            { k: 'screenshots' as SubTab, icon: Camera, label: t('shots.title') },
                             { k: 'settings' as SubTab, icon: SettingsIcon, label: t('nav.settings') },
                           ]).map((tab) => (
                             <button key={tab.k} onClick={() => setActiveSubTab(tab.k)}
@@ -366,6 +367,10 @@ export default function LibraryPage({ onLaunch, onDeleted, installingId, t }: Pr
                             <motion.div key="rpacks" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
                               <VersionResourcePacks t={t} />
                             </motion.div>
+                          ) : activeSubTab === 'screenshots' ? (
+                            <motion.div key="screenshots" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                              <MiniScreenshots t={t} />
+                            </motion.div>
                           ) : (
                             <motion.div key="settings" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
                               <InstanceSettings versionId={v.id} t={t} />
@@ -383,6 +388,62 @@ export default function LibraryPage({ onLaunch, onDeleted, installingId, t }: Pr
       </div>
       <input ref={iconRef} type="file" accept=".png,.jpg,.gif" className="hidden" onChange={handleIconFile} />
       <input ref={bannerRef} type="file" accept=".png,.jpg,.gif,.webp" className="hidden" onChange={handleBannerFile} />
+    </div>
+  );
+}
+
+function MiniScreenshots({ t }: { t: Props['t'] }) {
+  const [shots, setShots] = useState<any[]>([]);
+  const [images, setImages] = useState<Record<string, string>>({});
+  const [preview, setPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    window.electronAPI.mc.getScreenshots().then(setShots).catch(() => {});
+  }, []);
+
+  if (shots.length === 0) return <p className="text-xs text-mc-muted py-2 italic">{t('shots.empty')}</p>;
+
+  return (
+    <div>
+      <div className="flex gap-1.5 mb-2">
+        <button onClick={() => window.electronAPI.mc.openScreenshotsFolder()}
+          className="px-2.5 py-1.5 rounded-lg bg-mc-card/50 border border-mc-border text-[10px] text-mc-muted hover:text-mc-text transition-colors">
+          <FolderOpen size={10} className="inline mr-1" />{t('installed.openFolder')}
+        </button>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {shots.slice(0, 12).map(s => (
+          <div key={s.name} className="aspect-video rounded-lg bg-mc-card/30 border border-mc-border/30 overflow-hidden cursor-pointer relative group"
+            onClick={() => {
+              if (!images[s.name]) {
+                window.electronAPI.mc.getScreenshotBase64(s.name).then(b64 => {
+                  if (b64) setImages(prev => ({ ...prev, [s.name]: b64 }));
+                });
+              }
+              setPreview(images[s.name] || null);
+            }}
+            onMouseEnter={() => {
+              if (!images[s.name]) {
+                window.electronAPI.mc.getScreenshotBase64(s.name).then(b64 => {
+                  if (b64) setImages(prev => ({ ...prev, [s.name]: b64 }));
+                });
+              }
+            }}>
+            {images[s.name] ? (
+              <img src={images[s.name]} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center"><Loader2 size={12} className="animate-spin text-mc-muted" /></div>
+            )}
+            <button onClick={(e) => { e.stopPropagation(); window.electronAPI.mc.deleteScreenshot(s.name); setShots(shots.filter(x => x.name !== s.name)); }}
+              className="absolute top-1 right-1 p-1 rounded bg-mc-red/20 text-mc-red opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={8} /></button>
+          </div>
+        ))}
+      </div>
+      {preview && (
+        <div className="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4" onClick={() => setPreview(null)}>
+          <img src={preview} className="max-w-full max-h-full rounded-xl" />
+        </div>
+      )}
     </div>
   );
 }
