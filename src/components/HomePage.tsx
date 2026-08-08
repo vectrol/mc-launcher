@@ -20,6 +20,23 @@ export default function HomePage({ installedList, onLaunch, launching, manifest,
   const [newsLoading, setNewsLoading] = useState(!newsCache);
   const [playTime, setPlayTime] = useState<Record<string, number>>({});
   const [dlBytes, setDlBytes] = useState(0);
+  const [importMsg, setImportMsg] = useState('');
+  const [importOk, setImportOk] = useState(false);
+
+  async function handleImport() {
+    const folder = prompt(t('library.importHint'));
+    if (!folder) return;
+    try {
+      const r = await window.electronAPI.mc.importMinecraftFolder(folder);
+      setImportOk(true);
+      setImportMsg(`${t('library.imported')}: ${r.name}`);
+      setTimeout(() => setImportMsg(''), 4000);
+    } catch (e: any) {
+      setImportOk(false);
+      setImportMsg(e?.message || t('error.import'));
+      setTimeout(() => setImportMsg(''), 4000);
+    }
+  }
   const tips = [
     t('home.tip1'), t('home.tip2'), t('home.tip3'), t('home.tip4'),
   ];
@@ -143,11 +160,12 @@ export default function HomePage({ installedList, onLaunch, launching, manifest,
                 className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-mc-card/40 border border-mc-border/40 text-[10px] text-mc-muted hover:text-mc-text hover:border-mc-accent/30 transition-all">
                 <FolderOpen size={11} />{t('installed.openFolder')}
               </button>
-              <button onClick={() => window.electronAPI.mc.importMinecraftFolder(prompt(t('library.importHint')) || '')}
+              <button onClick={handleImport}
                 className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-mc-card/40 border border-mc-border/40 text-[10px] text-mc-muted hover:text-mc-text hover:border-mc-accent/30 transition-all">
                 <Wrench size={11} />{t('library.import')}
               </button>
             </div>
+            {importMsg && <p className={`mt-2 text-[10px] ${importOk ? 'text-mc-green' : 'text-mc-red'}`}>{importMsg}</p>}
           </motion.div>
 
           {/* News */}

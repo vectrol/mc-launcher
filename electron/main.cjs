@@ -297,7 +297,7 @@ ipcMain.handle('mc:checkCrashReports', async () => checkCrashReports());
 ipcMain.handle('mc:getCrashSuggestion', async (_e, crash) => getCrashSuggestion(crash));
 ipcMain.handle('mc:validateLaunch', async (_e, versionId) => {
   const settings = loadSettings();
-  const java = validateJava(settings.javaPath || 'java');
+  const java = await validateJava(settings.javaPath || 'java');
   const version = validateVersion(versionId);
   const disk = validateDiskSpace();
   return { java, version, disk };

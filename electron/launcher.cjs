@@ -224,7 +224,13 @@ function launchGame(versionId, mainWindow) {
       const { getInstanceSettings } = require('./mc-instances.cjs');
       const instSettings = getInstanceSettings(versionId);
       const javaPath = findJava(versionId);
-      const account = await getValidAccount();
+      let account = null;
+      try {
+        account = await Promise.race([
+          getValidAccount(),
+          new Promise(r => setTimeout(() => r(null), 15000)), // never block launch on auth
+        ]);
+      } catch { account = null; }
 
       // Ensure natives exist (repair if missing)
       ensureNatives(versionId, childData);

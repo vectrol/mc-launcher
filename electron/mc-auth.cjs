@@ -82,6 +82,7 @@ function httpGetJSON(url, headers = {}) {
       res.on('end', () => resolve(JSON.parse(Buffer.concat(chunks).toString('utf-8'))));
       res.on('error', reject);
     });
+    req.setTimeout(10000, () => { req.destroy(new Error('Request timed out')); });
     req.on('error', reject);
   });
 }
@@ -100,6 +101,7 @@ function httpPostJSON(url, body, headers = {}) {
       res.on('end', () => resolve(JSON.parse(Buffer.concat(chunks).toString('utf-8'))));
       res.on('error', reject);
     });
+    req.setTimeout(10000, () => { req.destroy(new Error('Auth request timed out')); });
     req.on('error', reject);
     req.write(postData);
     req.end();

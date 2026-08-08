@@ -93,15 +93,20 @@ function getCrashDetail(file) {
 const { execSync } = require('child_process');
 
 function validateJava(javaPath) {
-  try {
-    const result = execSync(`"${javaPath}" -version 2>&1`).toString();
-    const versionMatch = result.match(/version "(\d+[.\d+]*)/);
-    if (versionMatch) {
-      const major = parseInt(versionMatch[1].split('.')[0]);
-      return { valid: true, version: versionMatch[1], major };
-    }
-  } catch {}
-  return { valid: false, error: 'Java not found or incompatible. Install Java 17+ or set path in Settings.' };
+  return new Promise((resolve) => {
+    const { exec } = require('child_process');
+    const timer = setTimeout(() => resolve({ valid: false, error: 'Java check timed out. Try setting Java path manually in Settings.' }), 8000);
+    exec(`"${javaPath}" -version 2>&1`, { timeout: 7000 }, (err, stdout, stderr) => {
+      clearTimeout(timer);
+      const out = (stdout || stderr || '').toString();
+      const m = out.match(/version "(\d+[.\d+]*)/);
+      if (m) {
+        const major = parseInt(m[1].split('.')[0]);
+        return resolve({ valid: true, version: m[1], major });
+      }
+      resolve({ valid: false, error: 'Java not found or incompatible. Use Java auto-install in Settings.' });
+    });
+  });
 }
 
 function validateVersion(versionId) {
@@ -133,7 +138,7 @@ function validateDiskSpace() {
     if (freeBytes === 0) {
       try {
         const { execSync } = require('child_process');
-        const result = execSync(`powershell -NoProfile -Command "Get-PSDrive -Name C | Select-Object -ExpandProperty Free"`, { encoding: 'utf-8' });
+        const result = execSync(`powershell -NoProfile -Command "Get-PSDrive -Name C | Select-Object -ExpandProperty Free"`, { encoding: 'utf-8', timeout: 4000 });
         freeBytes = parseInt(result.trim());
       } catch {}
     }

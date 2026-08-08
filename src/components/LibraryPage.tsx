@@ -31,6 +31,7 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
   const [banners, setBanners] = useState<Record<string, string>>({});
   const bannerRef = useRef<HTMLInputElement>(null);
   const [bannerTarget, setBannerTarget] = useState('');
+  const [bannerMsg, setBannerMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     loadVersions();
@@ -145,9 +146,15 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
           <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
             onClick={async () => {
               const folder = prompt(t('library.importHint'));
-              if (folder) {
-                try { await window.electronAPI.mc.importMinecraftFolder(folder); await loadVersions(); } catch {}
+              if (!folder) return;
+              try {
+                const r = await window.electronAPI.mc.importMinecraftFolder(folder);
+                await loadVersions();
+                setBannerMsg({ ok: true, text: `${t('library.imported')}: ${r.name}` });
+              } catch (e: any) {
+                setBannerMsg({ ok: false, text: e?.message || t('error.import') });
               }
+              setTimeout(() => setBannerMsg(null), 4000);
             }}
             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-mc-border hover:border-mc-accent/40 text-sm text-mc-muted hover:text-mc-text transition-all">
             <FolderInput size={14} /> {t('library.import')}
@@ -158,6 +165,12 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
           </motion.button>
         </div>
       </div>
+
+      {bannerMsg && (
+        <div className={`px-6 py-2 text-xs ${bannerMsg.ok ? 'bg-mc-green/10 text-mc-green' : 'bg-mc-red/10 text-mc-red'}`}>
+          {bannerMsg.text}
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-6">
         {loading ? (
@@ -316,8 +329,13 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
                             </button>
                           ))}
                           <button onClick={async () => {
-                            try { await window.electronAPI.mc.exportModpack(v.id, 'curseforge'); }
-                            catch {}
+                            try {
+                              const r = await window.electronAPI.mc.exportModpack(v.id, 'curseforge');
+                              setBannerMsg({ ok: true, text: `${t('modpack.exported')}: ${r.path}` });
+                            } catch (e: any) {
+                              setBannerMsg({ ok: false, text: e?.message || t('error.export') });
+                            }
+                            setTimeout(() => setBannerMsg(null), 4000);
                           }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-mc-muted hover:text-mc-text transition-all">
                             <Archive size={12} />{t('modpack.export')}
                           </button>
