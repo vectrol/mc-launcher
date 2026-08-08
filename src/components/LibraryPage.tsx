@@ -145,7 +145,7 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
           </select>
           <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
             onClick={async () => {
-              const folder = prompt(t('library.importHint'));
+              const folder = await window.electronAPI.mc.pickDirectory();
               if (!folder) return;
               try {
                 const r = await window.electronAPI.mc.importMinecraftFolder(folder);

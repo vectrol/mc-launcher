@@ -126,6 +126,66 @@ ipcMain.handle('mc:getInstalledVersions', async () => getInstalledVersions());
 ipcMain.handle('mc:deleteVersion', async (_e, versionId) => deleteVersion(versionId));
 ipcMain.handle('mc:openFolder', async () => openMinecraftFolder());
 
+// Native dialog helpers (window.prompt doesn't exist in Electron)
+ipcMain.handle('mc:pickDirectory', async () => {
+  const { dialog } = require('electron');
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+    title: 'Select Folder',
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+
+ipcMain.handle('mc:promptInput', async (_e, title, placeholder, defaultValue) => {
+  const { dialog } = require('electron');
+  return new Promise((resolve) => {
+    dialog.showMessageBox(mainWindow, {
+      type: 'question',
+      title: title || 'Input',
+      message: title || 'Input',
+      detail: placeholder || '',
+      buttons: ['OK', 'Cancel'],
+      defaultId: 0,
+      cancelId: 1,
+      checkboxLabel: defaultValue || '',
+    }).then(({ response, checkboxChecked }) => {
+      // Note: messageBox has no text input; use a small custom window instead
+      resolve(showInputWindow(title || 'Input', defaultValue || ''));
+    });
+  });
+});
+
+// Simple native input window (replaces window.prompt)
+function showInputWindow(title, defaultValue) {
+  return new Promise((resolve) => {
+    const { BrowserWindow } = require('electron');
+    const inputWin = new BrowserWindow({
+      width: 360, height: 180, resizable: false, frame: true,
+      title: title || 'Input',
+      parent: mainWindow, modal: true,
+      webPreferences: { contextIsolation: false, nodeIntegration: true },
+    });
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+      body{font-family:system-ui;margin:0;padding:16px;background:#14141f;color:#f0f0fa}
+      input{width:100%;padding:8px;border-radius:8px;border:1px solid #2e2e46;background:#1c1c2b;color:#f0f0fa;margin:12px 0;outline:none}
+      .btn{display:inline-block;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px}
+      .ok{background:#6366f1;color:#fff;margin-right:8px}.cancel{background:#2e2e46;color:#aab}
+      </style></head><body>
+      <input id="v" value="${(defaultValue || '').replace(/"/g, '&quot;')}" autofocus>
+      <button class="btn ok" onclick="done(true)">OK</button>
+      <button class="btn cancel" onclick="done(false)">Cancel</button>
+      <script>
+        function done(ok){ require('electron').ipcRenderer.send('input-result', ok ? document.getElementById('v').value : null) }
+        window.addEventListener('keydown', e => { if(e.key==='Enter') done(true); if(e.key==='Escape') done(false) });
+      </script></body></html>`;
+    inputWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    inputWin.webContents.on('ipc-message', (_e, channel, value) => {
+      if (channel === 'input-result') { resolve(value); inputWin.close(); }
+    });
+    inputWin.on('closed', () => { resolve(undefined); });
+  });
+}
+
 // Mods
 ipcMain.handle('mc:getMods', async (_e, versionId) => getMods(versionId));
 ipcMain.handle('mc:importMod', async (_e, versionId, sourcePath) => importMod(versionId, sourcePath));

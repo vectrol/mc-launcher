@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getInstalledVersions: () => ipcRenderer.invoke('mc:getInstalledVersions'),
     deleteVersion: (id) => ipcRenderer.invoke('mc:deleteVersion', id),
     openFolder: () => ipcRenderer.invoke('mc:openFolder'),
+    pickDirectory: () => ipcRenderer.invoke('mc:pickDirectory'),
+    promptInput: (title, placeholder, defaultValue) => ipcRenderer.invoke('mc:promptInput', title, placeholder, defaultValue),
     getMods: (versionId) => ipcRenderer.invoke('mc:getMods', versionId),
     importMod: (versionId, sourcePath) => ipcRenderer.invoke('mc:importMod', versionId, sourcePath),
     importMods: (versionId, files) => ipcRenderer.invoke('mc:importMods', versionId, files),

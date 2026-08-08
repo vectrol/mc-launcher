@@ -24,7 +24,7 @@ export default function HomePage({ installedList, onLaunch, launching, manifest,
   const [importOk, setImportOk] = useState(false);
 
   async function handleImport() {
-    const folder = prompt(t('library.importHint'));
+    const folder = await window.electronAPI.mc.pickDirectory();
     if (!folder) return;
     try {
       const r = await window.electronAPI.mc.importMinecraftFolder(folder);

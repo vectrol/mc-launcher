@@ -232,6 +232,8 @@ interface ElectronAPI {
     getInstalledVersions: () => Promise<InstalledVersion[]>;
     deleteVersion: (id: string) => Promise<boolean>;
     openFolder: () => Promise<void>;
+    pickDirectory: () => Promise<string | null>;
+    promptInput: (title: string, placeholder?: string, defaultValue?: string) => Promise<string | null>;
     getMods: (versionId: string) => Promise<ModInfo[]>;
     importMod: (versionId: string, sourcePath: string) => Promise<{ name: string; path: string }>;
     importMods: (versionId: string, files: string[]) => Promise<{ success: boolean; name: string; error?: string }[]>;

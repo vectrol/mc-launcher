@@ -59,7 +59,7 @@ export default function InstanceSettings({ versionId, t }: Props) {
           <input type="text" value={inst.gameDir || ''} onChange={(e) => save({ gameDir: e.target.value })}
             placeholder={t('settings.gameDirHint')} className="flex-1 bg-mc-card/50 border border-mc-border/40 rounded-lg px-2 py-1.5 text-[11px] text-mc-text outline-none focus:border-mc-accent/40 font-mono" />
           <button onClick={async () => {
-            const dir = prompt(t('settings.gameDir'));
+            const dir = await window.electronAPI.mc.pickDirectory();
             if (dir) { await window.electronAPI.mc.setCustomGameDir(versionId, dir); const s = await window.electronAPI.mc.getInstanceSettings(versionId); setInst(s); }
           }} className="px-2.5 py-1.5 rounded-lg bg-mc-card/50 border border-mc-border/40 text-[10px] text-mc-muted hover:text-mc-text transition-colors shrink-0">{t('settings.detect')}</button>
         </div>
