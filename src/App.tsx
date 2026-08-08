@@ -339,7 +339,7 @@ function LauncherApp() {
             ) : activePage === 'library' ? (
               <motion.div key="library" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
-                <LibraryPage onLaunch={handleLaunch} installingId={downloading} t={t} />
+                <LibraryPage onLaunch={handleLaunch} onDeleted={refreshInstalled} installingId={downloading} t={t} />
               </motion.div>
             ) : activePage === 'modBrowser' ? (
               <motion.div key="modBrowser" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}

@@ -66,6 +66,10 @@ function downloadFile(url, destPath, onProgress) {
       if (res.statusCode === 302 || res.statusCode === 301) {
         return downloadFile(res.headers.location, destPath, onProgress).then(resolve).catch(reject);
       }
+      if (res.statusCode >= 400) {
+        try { fs.unlinkSync(destPath); } catch {}
+        return reject(new Error(`HTTP ${res.statusCode}`));
+      }
       const total = parseInt(res.headers['content-length'], 10) || 0;
       let downloaded = 0;
       let lastTick = Date.now();
@@ -87,14 +91,23 @@ function downloadFile(url, destPath, onProgress) {
         }
       });
       res.on('end', () => { ws.end(); resolve(); });
-      res.on('error', reject);
+      res.on('error', (e) => { try { ws.close(); fs.unlinkSync(destPath); } catch {} reject(e); });
     });
-    req.on('error', reject);
+    // Timeout: fail cleanly instead of hanging forever
+    req.setTimeout(30000, () => {
+      req.destroy(new Error('Download timed out'));
+      try { fs.unlinkSync(destPath); } catch {}
+    });
+    req.on('error', (e) => {
+      try { fs.unlinkSync(destPath); } catch {}
+      reject(e);
+    });
   });
 }
 
 async function downloadBatch(items, downloadFn, threads, onProgress) {
   let completed = 0;
+  let failed = 0;
   const total = items.length;
   let activeDownloads = 0;
   let index = 0;
@@ -109,22 +122,23 @@ async function downloadBatch(items, downloadFn, threads, onProgress) {
           .then(() => {
             completed++;
             activeDownloads--;
-            if (onProgress) onProgress({ completed, total, percent: Math.round((completed / total) * 100) });
+            if (onProgress) onProgress({ completed, total, failed, percent: Math.round((completed / total) * 100) });
             next();
-            if (completed >= total) resolve();
+            if (completed >= total) resolve({ failed });
           })
           .catch((err) => {
-            // Skip failed downloads, continue with others
+            // Count failures instead of silently swallowing
             completed++;
+            failed++;
             activeDownloads--;
-            if (onProgress) onProgress({ completed, total, percent: Math.round((completed / total) * 100) });
+            if (onProgress) onProgress({ completed, total, failed, percent: Math.round((completed / total) * 100) });
             next();
-            if (completed >= total) resolve();
+            if (completed >= total) resolve({ failed });
           });
       }
     }
     next();
-    if (items.length === 0) resolve();
+    if (items.length === 0) resolve({ failed: 0 });
   });
 }
 
@@ -195,15 +209,15 @@ async function downloadVersion(versionId, onProgress, signal) {
     // Download asset objects in parallel
     const objects = Object.entries(assetIndex.objects);
     let totalSize = 0;
+    let settings = { downloadSource: 'mojang' };
+    try { settings.downloadSource = require('./mc-settings.cjs').loadSettings().downloadSource; } catch {}
+    const assetBase = settings.downloadSource === 'bmclapi'
+      ? 'https://bmclapi2.bangbang93.com/assets/'
+      : 'https://resources.download.minecraft.net/';
     const tasks = objects.map(([name, obj]) => {
       const hash = obj.hash;
-  const subPath = `${hash.substring(0, 2)}/${hash}`;
-  const settings = { downloadSource: 'mojang' };
-  try { settings.downloadSource = require('./mc-settings.cjs').loadSettings().downloadSource; } catch {}
-  const assetBase = settings.downloadSource === 'bmclapi'
-    ? 'https://bmclapi2.bangbang93.com/assets/'
-    : 'https://resources.download.minecraft.net/';
-  const assetUrl = `${assetBase}${subPath}`;
+      const subPath = `${hash.substring(0, 2)}/${hash}`;
+      const assetUrl = `${assetBase}${subPath}`;
       const assetPath = path.join(ASSETS_DIR, 'objects', subPath);
       totalSize += obj.size || 0;
       return async () => {
@@ -215,16 +229,19 @@ async function downloadVersion(versionId, onProgress, signal) {
 
     let completed = 0;
     let totalBytes = 0;
-    await downloadBatch(tasks, (fn) => fn(), threads, (p) => {
+    const assetsResult = await downloadBatch(tasks, (fn) => fn(), threads, (p) => {
       completed = p.completed;
       onProgress({
         phase: 'assets',
-        message: `Assets: ${completed}/${p.total}`,
+        message: `Assets: ${completed}/${p.total}${p.failed > 0 ? ` (${p.failed} failed)` : ''}`,
         percent: Math.round((completed / p.total) * 100),
         current: completed,
         total: p.total,
       });
     });
+    if (assetsResult.failed > 0) {
+      onProgress({ phase: 'assets', message: `Assets: ${assetsResult.failed} failed - network issue?`, percent: 100 });
+    }
   }
 
   // Download libraries in parallel
@@ -245,12 +262,12 @@ async function downloadVersion(versionId, onProgress, signal) {
     }
 
     let completed = 0;
+    let failedCount = 0;
     const libTasks = filtered.map((lib) => async () => {
       const artifact = lib.downloads.artifact;
       const libPath = path.join(LIBRARIES_DIR, artifact.path);
       if (!fs.existsSync(libPath)) {
         let url = artifact.url;
-        // BMCLAPI mirror for libraries
         try {
           const src = require('./mc-settings.cjs').loadSettings().downloadSource;
           if (src === 'bmclapi' && url.includes('libraries.minecraft.net')) {
@@ -260,17 +277,22 @@ async function downloadVersion(versionId, onProgress, signal) {
         await downloadFile(url, libPath);
       }
     });
-
-    await downloadBatch(libTasks, (fn) => fn(), threads, (p) => {
+    const libResult = await downloadBatch(libTasks, (fn) => fn(), threads, (p) => {
       completed = p.completed;
+      failedCount = p.failed;
       onProgress({
         phase: 'libraries',
-        message: `Libraries: ${completed}/${p.total}`,
+        message: `Libraries: ${completed}/${p.total}${p.failed > 0 ? ` (${p.failed} failed)` : ''}`,
         percent: Math.round((completed / p.total) * 100),
         current: completed,
         total: p.total,
       });
     });
+
+    // Critical: if many libraries failed, the game cannot launch - report loudly
+    if (libResult.failed > 0) {
+      onProgress({ phase: 'libraries', message: `Libraries: ${libResult.failed} failed. Re-download recommended.`, percent: 100 });
+    }
   }
 
   // Extract native libraries

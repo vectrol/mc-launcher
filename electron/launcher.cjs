@@ -190,6 +190,7 @@ function buildClasspath(merged) {
     if (lib.downloads?.artifact?.path) {
       const p = path.join(LIBRARIES_DIR, lib.downloads.artifact.path);
       if (fs.existsSync(p)) { cp.push(p); found = true; }
+      else missing.push(lib.downloads.artifact.path);
     }
     if (!found && lib.name) {
       const parts = lib.name.split(':');
@@ -203,8 +204,13 @@ function buildClasspath(merged) {
     }
   }
 
-  if (cp.length === 0) {
-    const err = new Error(`Classpath is empty. Missing ${missing.length} libraries. The base game version may need to be downloaded first.\nMissing: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? ` and ${missing.length - 3} more...` : ''}`);
+  const totalLibs = merged.libraries.length;
+  if (cp.length === 0 || (totalLibs > 0 && missing.length > totalLibs * 0.5)) {
+    const err = new Error(
+      cp.length === 0
+        ? `Classpath is empty. Version files are incomplete - please re-download. Missing ${missing.length} libraries.`
+        : `Version is incomplete: ${missing.length}/${totalLibs} libraries missing. Please re-download this version.`
+    );
     err.missingLibs = missing;
     throw err;
   }

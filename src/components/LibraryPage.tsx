@@ -9,13 +9,14 @@ import InstanceSettings from './library/InstanceSettings';
 
 interface Props {
   onLaunch: (versionId: string) => void;
+  onDeleted?: () => void;
   installingId: string | null;
   t: (key: string, ...args: (string | number)[]) => string;
 }
 
 type SubTab = 'mods' | 'worlds' | 'rpacks' | 'settings';
 
-export default function LibraryPage({ onLaunch, installingId, t }: Props) {
+export default function LibraryPage({ onLaunch, onDeleted, installingId, t }: Props) {
   const [versions, setVersions] = useState<InstalledVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -124,9 +125,15 @@ export default function LibraryPage({ onLaunch, installingId, t }: Props) {
   }
 
   async function handleDelete(versionId: string) {
-    await window.electronAPI.mc.deleteVersion(versionId);
-    setVersions((prev) => prev.filter((v) => v.id !== versionId));
-    setConfirmDelete(null); setExpandedId(null);
+    try {
+      await window.electronAPI.mc.deleteVersion(versionId);
+      setVersions((prev) => prev.filter((v) => v.id !== versionId));
+      setConfirmDelete(null); setExpandedId(null);
+      onDeleted?.();
+    } catch (e: any) {
+      setBannerMsg({ ok: false, text: e?.message || t('error.export') });
+      setTimeout(() => setBannerMsg(null), 3000);
+    }
   }
 
   return (
