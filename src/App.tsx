@@ -244,6 +244,9 @@ function LauncherApp() {
               {activePage === item.id && (
                 <motion.div layoutId="nav-indicator" className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-mc-accent rounded-full" />
               )}
+              {activePage === item.id && (
+                <motion.div layoutId="nav-glow" className="absolute inset-0 rounded-xl bg-mc-accent/5" />
+              )}
             </motion.button>
           ))}
 
@@ -321,38 +324,46 @@ function LauncherApp() {
           }>
           <AnimatePresence mode="wait">
             {activePage === 'home' ? (
-              <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 flex flex-col overflow-hidden">
+              <motion.div key="home" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <HomePage installedList={installedList} onLaunch={handleLaunch} launching={launching} manifest={manifest} t={t} />
               </motion.div>
             ) : activePage === 'versions' ? (
-              <motion.div key="versions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 flex flex-col overflow-hidden">
+              <motion.div key="versions" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <VersionBrowser
                   manifest={manifest} loading={loading} downloading={downloading} launching={launching}
                   installedVersions={installedVersions} downloadProgress={downloadProgress}
                   onInstall={handleInstall} onLaunch={handleLaunch} t={t} />
               </motion.div>
             ) : activePage === 'library' ? (
-              <motion.div key="library" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 flex flex-col overflow-hidden">
+              <motion.div key="library" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <LibraryPage onLaunch={handleLaunch} installingId={downloading} t={t} />
               </motion.div>
             ) : activePage === 'modBrowser' ? (
-              <motion.div key="modBrowser" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 flex flex-col overflow-hidden">
+              <motion.div key="modBrowser" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <ModBrowser installedList={installedList} t={t} />
               </motion.div>
             ) : activePage === 'servers' ? (
-              <motion.div key="servers" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 flex flex-col overflow-hidden">
+              <motion.div key="servers" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <ServerList t={t} />
               </motion.div>
             ) : activePage === 'friends' ? (
-              <motion.div key="friends" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 flex flex-col overflow-hidden">
+              <motion.div key="friends" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <FriendPanel t={t} installedList={installedList} />
               </motion.div>
             ) : activePage === 'screenshots' ? (
-              <motion.div key="screenshots" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 flex flex-col overflow-hidden">
+              <motion.div key="screenshots" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <ScreenshotsPanel t={t} />
               </motion.div>
             ) : (
-              <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 flex flex-col overflow-hidden">
+              <motion.div key="settings" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <SettingsPanel t={t} />
               </motion.div>
             )}

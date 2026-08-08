@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Package, HardDrive, TrendingUp, Clock, Lightbulb, Newspaper, ExternalLink } from 'lucide-react';
+import { Play, Package, HardDrive, TrendingUp, Clock, Lightbulb, Newspaper, ExternalLink, FolderOpen, Wrench, UserPlus, Download } from 'lucide-react';
 import { InstalledVersion, NewsArticle } from '../types';
 
 interface Props {
@@ -136,6 +136,18 @@ export default function HomePage({ installedList, onLaunch, launching, manifest,
                 ))}
               </div>
             ) : <p className="text-sm text-mc-muted italic py-2">{t('home.noVersion')}</p>}
+
+            {/* Quick actions */}
+            <div className="flex gap-1.5 mt-4 pt-4 border-t border-mc-border/50">
+              <button onClick={() => window.electronAPI.mc.openFolder()}
+                className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-mc-card/40 border border-mc-border/40 text-[10px] text-mc-muted hover:text-mc-text hover:border-mc-accent/30 transition-all">
+                <FolderOpen size={11} />{t('installed.openFolder')}
+              </button>
+              <button onClick={() => window.electronAPI.mc.importMinecraftFolder(prompt(t('library.importHint')) || '')}
+                className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-mc-card/40 border border-mc-border/40 text-[10px] text-mc-muted hover:text-mc-text hover:border-mc-accent/30 transition-all">
+                <Wrench size={11} />{t('library.import')}
+              </button>
+            </div>
           </motion.div>
 
           {/* News */}
@@ -156,8 +168,17 @@ export default function HomePage({ installedList, onLaunch, launching, manifest,
                 {news.slice(0, 4).map((a) => (
                   <a key={a.id} href={a.url} target="_blank"
                     className="block p-2 rounded-xl hover:bg-mc-card/30 transition-colors group">
-                    <p className="text-xs font-medium text-mc-text line-clamp-1 group-hover:text-mc-accent-hover transition-colors">{a.title}</p>
-                    <p className="text-[10px] text-mc-muted mt-0.5 line-clamp-1">{a.body}</p>
+                    <div className="flex items-start gap-2">
+                      {a.image && (
+                        <img src={a.image} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-mc-text line-clamp-1 group-hover:text-mc-accent-hover transition-colors">{a.title}</p>
+                        <p className="text-[10px] text-mc-muted mt-0.5 line-clamp-1">{a.body}</p>
+                        <p className="text-[9px] text-mc-muted/60 mt-0.5">{a.date?.slice(0, 10)}</p>
+                      </div>
+                    </div>
                   </a>
                 ))}
               </div>
