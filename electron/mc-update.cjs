@@ -180,4 +180,21 @@ function importMinecraftFolder(folderPath) {
   return { success: true, name: `${baseName}-import`, mcVersion };
 }
 
-module.exports = { logError, getErrorLog, clearErrorLog, checkForUpdates, downloadUpdate, getLocalVersion, importMinecraftFolder };
+// Apply update: run installer silently (NSIS /S) — full silent replace
+function applyUpdate() {
+  const updatesDir = path.join(app.getPath('userData'), 'updates');
+  if (!fs.existsSync(updatesDir)) return { success: false, error: 'No update downloaded' };
+  const exe = fs.readdirSync(updatesDir).find(f => /setup.*\.exe$/i.test(f));
+  if (!exe) return { success: false, error: 'No installer found' };
+  const installer = path.join(updatesDir, exe);
+  const { exec } = require('child_process');
+  // NSIS silent install; app will close on restart
+  exec(`"${installer}" /S`, (err) => {
+    if (err) return { success: false, error: err.message };
+  });
+  // Close launcher so installer can replace files
+  setTimeout(() => app.quit(), 1500);
+  return { success: true, installer };
+}
+
+module.exports = { logError, getErrorLog, clearErrorLog, checkForUpdates, downloadUpdate, applyUpdate, getLocalVersion, importMinecraftFolder };

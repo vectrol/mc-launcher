@@ -137,4 +137,43 @@ async function updateAllMods(versionId, onProgress) {
   return { updated, failed, backupDir: backupSub };
 }
 
-module.exports = { checkModsForUpdates, detectModConflicts, updateAllMods };
+module.exports = { checkModsForUpdates, detectModConflicts, updateAllMods,
+
+  // Recursive dependency tree for a mod version
+  async getModDependencyTree(slug, depth = 0) {
+    const { getModrinthDependencies, getModrinthVersionFile, getModrinthVersions } = require('./mc-online.cjs');
+    if (depth > 3) return [];
+    try {
+      const versions = await getModrinthVersions(slug);
+      if (versions.length === 0) return [];
+      const latest = versions[0];
+      const deps = await getModrinthDependencies(latest.id);
+      const tree = [];
+      for (const dep of deps) {
+        try {
+          const file = await getModrinthVersionFile(dep.versionId);
+          // Resolve project slug from version id
+          const https = require('https');
+          const proj = await new Promise((resolve) => {
+            https.get(`https://api.modrinth.com/v2/version/${dep.versionId}`, { headers: { 'User-Agent': 'MCLauncher' } }, (res) => {
+              let d = '';
+              res.on('data', c => d += c);
+              res.on('end', () => { try { resolve(JSON.parse(d)); } catch { resolve(null); } });
+            }).on('error', () => resolve(null));
+          });
+          const childSlug = proj?.project_id || dep.projectId;
+          tree.push({
+            projectId: dep.projectId,
+            slug: childSlug,
+            versionId: dep.versionId,
+            fileName: file?.name || '',
+            fileUrl: file?.url || '',
+            depth,
+            children: await module.exports.getModDependencyTree(childSlug, depth + 1),
+          });
+        } catch {}
+      }
+      return tree;
+    } catch { return []; }
+  },
+};

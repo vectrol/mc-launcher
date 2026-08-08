@@ -20,7 +20,8 @@ const { toggleMod } = require('./mc-versions.cjs');
 const { startBroadcast, stopBroadcast, startLanScanner, getFriends, addFriend, removeFriend, getSnapshot } = require('./mc-friends.cjs');
 const { checkModsForUpdates, detectModConflicts, updateAllMods } = require('./mc-modtools.cjs');
 const { searchCurseForge, getCurseForgeFiles } = require('./mc-online.cjs');
-const { logError, getErrorLog, clearErrorLog, checkForUpdates, downloadUpdate, importMinecraftFolder } = require('./mc-update.cjs');
+const { logError, getErrorLog, clearErrorLog, checkForUpdates, downloadUpdate, applyUpdate, importMinecraftFolder } = require('./mc-update.cjs');
+const { getInstalledJres, listAdoptium, installJre } = require('./mc-jre.cjs');
 const { scanJava, recommendedJavaMajor, runDiagnostics } = require('./mc-java.cjs');
 const { getCrashDetail } = require('./mc-crash.cjs');
 const { autoSelectSource } = require('./mc-api.cjs');
@@ -237,6 +238,11 @@ ipcMain.handle('mc:downloadMod', async (_e, versionId, url, filename, destType) 
     dest = path.join(gameDir, 'shaderpacks', filename);
   } else if (destType === 'resourcepacks') {
     dest = path.join(BASE_DIR, 'resourcepacks', filename);
+  } else if (destType === 'temp') {
+    // Temp download for modpacks etc.
+    const tempDir = path.join(BASE_DIR, 'temp');
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+    dest = path.join(tempDir, filename);
   } else {
     dest = path.join(VERSIONS_DIR, versionId, 'mods', filename);
   }
@@ -351,6 +357,10 @@ ipcMain.handle('mc:updateAllMods', async (_e, versionId) => {
     mainWindow?.webContents.send('mc:updateAllProgress', p);
   });
 });
+ipcMain.handle('mc:getModDependencyTree', async (_e, slug) => {
+  const { getModDependencyTree } = require('./mc-modtools.cjs');
+  return getModDependencyTree(slug);
+});
 
 // CurseForge
 ipcMain.handle('mc:searchCurseForge', async (_e, query, gameVersion) => searchCurseForge(query, gameVersion));
@@ -365,6 +375,15 @@ ipcMain.handle('mc:getLauncherVersion', async () => {
 ipcMain.handle('mc:downloadUpdate', async () => {
   await downloadUpdate((p) => {
     mainWindow?.webContents.send('mc:updateProgress', p);
+  });
+  return { success: true };
+});
+ipcMain.handle('mc:applyUpdate', async () => applyUpdate());
+ipcMain.handle('mc:getInstalledJres', async () => getInstalledJres());
+ipcMain.handle('mc:listAdoptium', async (_e, major) => listAdoptium(major));
+ipcMain.handle('mc:installJre', async (_e, major) => {
+  await installJre(major, (p) => {
+    mainWindow?.webContents.send('mc:downloadProgress', p);
   });
   return { success: true };
 });

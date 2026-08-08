@@ -318,6 +318,11 @@ interface ElectronAPI {
     checkForUpdates: () => Promise<{ hasUpdate: boolean; current: string; latest?: string; notes?: string; url?: string; assets?: { name: string; url: string; size: number }[] }>;
     getLauncherVersion: () => Promise<string>;
     downloadUpdate: () => Promise<{ success: boolean }>;
+    applyUpdate: () => Promise<{ success: boolean; installer?: string; error?: string }>;
+    getInstalledJres: () => Promise<{ name: string; dir: string; path: string; exists: boolean }[]>;
+    listAdoptium: (major: number) => Promise<{ name: string; version: string; url: string; size: number }[]>;
+    installJre: (major: number) => Promise<{ success: boolean }>;
+    getModDependencyTree: (slug: string) => Promise<any[]>;
     openUpdateFolder: () => Promise<void>;
     onUpdateProgress: (cb: (data: { percent: number; downloaded: number; total: number }) => void) => void;
     getErrorLog: () => Promise<string>;

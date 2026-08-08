@@ -120,6 +120,26 @@ export default function ModBrowser({ installedList, t }: Props) {
     } catch {} finally { setVersionsLoading(false); }
   }
 
+  // Modpack: download .mrpack then parse+install
+  const [packInstalling, setPackInstalling] = useState(false);
+  async function installModpack() {
+    if (!selectedMod || type !== 'modpack') return;
+    try {
+      setPackInstalling(true); setError(null);
+      const vers = await window.electronAPI.mc.getModrinthVersions(selectedMod.slug, undefined, 'modpack');
+      if (vers.length === 0) { setError(t('mods.noVersionForMod')); return; }
+      const file = vers[0].files.find((f: any) => f.primary) || vers[0].files[0];
+      if (!file) return;
+      // Download mrpack to temp
+      const dest = await window.electronAPI.mc.downloadMod('', file.url, `${selectedMod.slug}.mrpack`, 'temp');
+      if (!dest.success) { setError(t('error.download')); return; }
+      const pack = await window.electronAPI.mc.parseModpack(dest.path);
+      await window.electronAPI.mc.installModpack(pack);
+      setShowInstall(false); setSelectedMod(null);
+    } catch (e: any) { setError(e.message); }
+    finally { setPackInstalling(false); }
+  }
+
   async function doInstall(fileUrl: string, fileName: string, versionId?: string) {
     if (!selectedMod || !targetVersion) return;
     try {
@@ -256,7 +276,15 @@ export default function ModBrowser({ installedList, t }: Props) {
                       )}
                     </>
                   ) : (
-                    <p className="text-xs text-mc-muted">{t('market.modpackHint')}</p>
+                    <div className="space-y-2">
+                      <p className="text-xs text-mc-muted">{t('market.modpackHint')}</p>
+                      <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                        onClick={installModpack} disabled={packInstalling}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-mc-accent hover:bg-mc-accent-hover text-white text-sm font-medium transition-all disabled:opacity-50">
+                        {packInstalling ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                        {packInstalling ? t('loader.installing') : t('market.installPack')}
+                      </motion.button>
+                    </div>
                   )}
 
                   {showInstall && modVersions.length > 0 && (

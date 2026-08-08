@@ -59,11 +59,27 @@ export default function SettingsPanel({ t }: Props) {
   const [javaScanning, setJavaScanning] = useState(false);
   const [diagnostics, setDiagnostics] = useState<any>(null);
   const [diagRunning, setDiagRunning] = useState(false);
+  const [installedJres, setInstalledJres] = useState<any[]>([]);
+  const [jreInstalling, setJreInstalling] = useState<number | null>(null);
 
   async function handleScanJava() {
     setJavaScanning(true);
     try { setJavaList(await window.electronAPI.mc.scanJava()); } catch {}
     setJavaScanning(false);
+  }
+
+  async function loadJres() {
+    try { setInstalledJres(await window.electronAPI.mc.getInstalledJres()); } catch {}
+  }
+
+  async function handleInstallJre(major: number) {
+    setJreInstalling(major);
+    try {
+      window.electronAPI.mc.onDownloadProgress(() => {});
+      await window.electronAPI.mc.installJre(major);
+      await loadJres();
+    } catch {}
+    setJreInstalling(null);
   }
 
   async function handleDiagnostics() {
@@ -243,6 +259,36 @@ export default function SettingsPanel({ t }: Props) {
                             }`}>
                             <span className="font-mono">Java {j.version}</span>
                             <span className="text-mc-muted truncate ml-2">{j.path}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* JRE manager: auto-download Java */}
+                  <div>
+                    <label className="text-xs text-mc-muted uppercase tracking-widest block mb-2">{t('settings.jre')}</label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {[8, 17, 21].map(major => (
+                        <button key={major} onClick={() => handleInstallJre(major)} disabled={jreInstalling === major}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-mc-card/50 border border-mc-border text-[10px] text-mc-muted hover:text-mc-accent-hover transition-all disabled:opacity-40">
+                          {jreInstalling === major ? <Loader2 size={10} className="animate-spin" /> : <Download size={10} />}
+                          {t('settings.dlJre', major)}
+                        </button>
+                      ))}
+                      <button onClick={loadJres} className="px-3 py-1.5 rounded-lg bg-mc-card/50 border border-mc-border text-[10px] text-mc-muted hover:text-mc-text transition-all">
+                        <RefreshCw size={10} className="inline mr-1" />{t('settings.refreshJre')}
+                      </button>
+                    </div>
+                    {installedJres.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {installedJres.map(j => (
+                          <button key={j.name} onClick={() => handleSave({ javaPath: j.path })}
+                            className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[10px] border transition-all ${
+                              settings.javaPath === j.path ? 'bg-mc-accent/15 border-mc-accent/30 text-mc-accent-hover' : 'bg-mc-card/30 border-mc-border/30 text-mc-muted hover:text-mc-text'
+                            }`}>
+                            <span className="font-mono">Java {j.name}</span>
+                            <span className="text-[9px] text-mc-green">{t('settings.installed')}</span>
                           </button>
                         ))}
                       </div>
@@ -486,6 +532,10 @@ export default function SettingsPanel({ t }: Props) {
                           <CheckCircle2 size={11} /> {t('help.updateDownloaded')}
                           <button onClick={() => window.electronAPI.mc.openUpdateFolder()}
                             className="text-mc-accent-hover hover:underline">{t('help.openFolder')}</button>
+                          <button onClick={async () => { await window.electronAPI.mc.applyUpdate(); }}
+                            className="px-2.5 py-1 rounded-lg bg-mc-green/20 text-mc-green hover:bg-mc-green/30 transition-colors">
+                            {t('help.installNow')}
+                          </button>
                         </div>
                       )}
                     </div>

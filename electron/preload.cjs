@@ -112,6 +112,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     checkForUpdates: () => ipcRenderer.invoke('mc:checkForUpdates'),
     getLauncherVersion: () => ipcRenderer.invoke('mc:getLauncherVersion'),
     downloadUpdate: () => ipcRenderer.invoke('mc:downloadUpdate'),
+    applyUpdate: () => ipcRenderer.invoke('mc:applyUpdate'),
+    getInstalledJres: () => ipcRenderer.invoke('mc:getInstalledJres'),
+    listAdoptium: (major) => ipcRenderer.invoke('mc:listAdoptium', major),
+    installJre: (major) => ipcRenderer.invoke('mc:installJre', major),
+    getModDependencyTree: (slug) => ipcRenderer.invoke('mc:getModDependencyTree', slug),
     openUpdateFolder: () => ipcRenderer.invoke('mc:openUpdateFolder'),
     onUpdateProgress: (callback) => {
       ipcRenderer.on('mc:updateProgress', (_e, data) => callback(data));
