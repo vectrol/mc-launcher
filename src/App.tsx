@@ -58,12 +58,12 @@ function LauncherApp() {
   const [splashStatus, setSplashStatus] = useState('');
   const [crashDetail, setCrashDetail] = useState<any>(null);
 
-  // Listen for game logs during launch to show status
+  // Listen for game logs during launch
   useEffect(() => {
     window.electronAPI.mc.onGameLog((data: string) => {
-      setSplashVisible(false); // game started, hide splash
-      if (data.includes('[Launcher]') || data.includes('[Java]')) {
-        setSplashStatus(data.trim());
+      // Only hide splash for actual game output, not launcher diagnostics
+      if (!data.includes('[Launcher]') && !data.includes('[Java]')) {
+        setSplashVisible(false);
       }
     });
   }, []);
@@ -85,10 +85,6 @@ function LauncherApp() {
     window.electronAPI.mc.onDownloadProgress((data: DownloadProgress) => {
       setDownloadProgress(data);
       if (data.phase === 'done') refreshInstalled();
-    });
-    // Hide splash on first game log (game started)
-    window.electronAPI.mc.onGameLog(() => {
-      setSplashVisible(false);
     });
     // Keyboard shortcuts
     const handleKey = (e: KeyboardEvent) => {
@@ -203,10 +199,12 @@ function LauncherApp() {
       const validation = await window.electronAPI.mc.validateLaunch(versionId);
       if (!validation.java.valid) {
         setSplashStatus(`Error: ${validation.java.error || 'Java not found'}`);
+        toast(validation.java.error || t('error.java'), 'error');
         return;
       }
       if (!validation.version.valid) {
         setSplashStatus(`Error: ${validation.version.error || 'Version incomplete'}`);
+        toast(validation.version.error || t('error.version'), 'error');
         return;
       }
       if (!validation.disk.valid) {
@@ -232,6 +230,7 @@ function LauncherApp() {
       const msg = e.message || t('error.launch');
       setError(msg);
       setSplashStatus(`Error: ${msg}`);
+      toast(msg, 'error');
     } finally {
       setLaunching(null);
     }
