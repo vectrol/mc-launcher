@@ -145,21 +145,24 @@ function mergeVersions(childData) {
   // If child's jar exists, prefer it; otherwise use base
   const jarPath = fs.existsSync(childJar) ? childJar : parentJar;
 
-  // Build library list bottom-up (base first, then overrides)
-  for (const ver of versions) {
+  // Build library list: child first, then parent appended (PCL order).
+  // This is critical: Fabric/Forge loader jars must be before vanilla libs
+  // so the mod classloader can intercept before Mojang bootstrap.
+  for (const ver of [...versions].reverse()) {
     if (ver.libraries) {
       for (const lib of ver.libraries) {
-        if (filterLib(lib)) {
-          // Check for overrides: same name replaces previous
-          const idx = libraries.findIndex((l) => l.name === lib.name);
-          if (idx >= 0 && lib.name) {
-            libraries[idx] = lib;
-          } else {
-            libraries.push(lib);
-          }
-        }
+        if (filterLib(lib)) libraries.push(lib);
       }
     }
+  }
+
+  // Deduplicate: same name libs keep first occurrence (child's version wins)
+  const seenLibs = new Set();
+  const deduplicated = [];
+  for (const lib of libraries) {
+    if (lib.name && seenLibs.has(lib.name)) continue;
+    if (lib.name) seenLibs.add(lib.name);
+    deduplicated.push(lib);
   }
 
   // Merge JVM args
@@ -217,7 +220,7 @@ function mergeVersions(childData) {
   return {
     id: childData.id,
     mainClass,
-    libraries,
+    libraries: deduplicated,
     jvmArgs,
     gameArgs,
     assetIndexId,

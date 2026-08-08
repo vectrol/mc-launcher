@@ -1,6 +1,7 @@
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { compareVersionGte, compareVersionLt } = require('./mc-compare.cjs');
 const { loadSettings, saveSettings } = require('./mc-settings.cjs');
 
 // ─── Java scanner ──────────────────────────────────────────
@@ -73,19 +74,6 @@ function extractMcVersion(versionId) {
   return segments.filter(s => s.startsWith('1.')).pop() || segments[0] || versionId;
 }
 
-function compareVersionLt(a, b) {
-  const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    if ((pa[i] || 0) < (pb[i] || 0)) return true;
-    if ((pa[i] || 0) > (pb[i] || 0)) return false;
-  }
-  return false;
-}
-
-function compareVersionGte(a, b) {
-  return !compareVersionLt(a, b);
-}
-
 // Recommended Java major for a Minecraft version (simple single-value)
 function recommendedJavaMajor(mcVersion) {
   const mcSeg = extractMcVersion(mcVersion);
@@ -113,59 +101,55 @@ function getJavaConstraint(versionId) {
 
   const VERSIONS_DIR = require('./mc-api.cjs').VERSIONS_DIR;
 
-  // Read version JSON — if this is a loader version (inheritsFrom), merge with parent
-  let versionJson = null, parentJson = null;
-  const jsonPath = path.join(VERSIONS_DIR, versionId, `${versionId}.json`);
-  if (fs.existsSync(jsonPath)) {
-    try { versionJson = JSON.parse(fs.readFileSync(jsonPath, 'utf-8')); } catch {}
+  // Load full inheritance chain as merged JSON string (PCL-style)
+  function loadChainStr(id, seen = new Set()) {
+    if (!id || seen.has(id)) return '';
+    seen.add(id);
+    const jp = path.join(VERSIONS_DIR, id, `${id}.json`);
+    let str = '';
+    if (fs.existsSync(jp)) { try { str = fs.readFileSync(jp, 'utf-8'); } catch {} }
+    try {
+      const obj = JSON.parse(str);
+      if (obj.inheritsFrom) str = loadChainStr(obj.inheritsFrom, seen) + '\n' + str;
+    } catch {}
+    return str;
   }
-  // If this version inherits from a parent (Fabric/Forge loader), read parent too
-  if (versionJson?.inheritsFrom) {
-    const parentPath = path.join(VERSIONS_DIR, versionJson.inheritsFrom, `${versionJson.inheritsFrom}.json`);
-    if (fs.existsSync(parentPath)) {
-      try { parentJson = JSON.parse(fs.readFileSync(parentPath, 'utf-8')); } catch {}
-    }
+  const mergedStr = loadChainStr(versionId);
+
+  // Check Mojang's javaVersion requirement
+  try {
+    const versionJson = JSON.parse(fs.readFileSync(path.join(VERSIONS_DIR, versionId, `${versionId}.json`), 'utf-8'));
+    const javaReq = versionJson?.javaVersion?.majorVersion;
+    if (javaReq) result.min = Math.max(result.min, parseInt(javaReq));
+  } catch {}
+
+  if (result.min === 8) {
+    if (minor >= 24) result.min = 21;
+    else if (minor >= 21 || (minor === 20 && mcParts[2] >= 5)) result.min = 21;
+    else if (minor >= 18) result.min = 17;
+    else if (minor >= 17) result.min = 16;
+    else if (minor >= 12) result.min = 8;
   }
 
-  // Read Mojang's javaVersion requirement from version JSON
-  const javaReq = versionJson?.javaVersion?.majorVersion || parentJson?.javaVersion?.majorVersion;
-  if (javaReq) {
-    result.min = Math.max(result.min, parseInt(javaReq));
-  } else if (minor >= 24) {
-    result.min = 21;
-  } else if (minor >= 21 || (minor === 20 && mcParts[2] >= 5)) {
-    result.min = 21;
-  } else if (minor >= 18) {
-    result.min = 17;
-  } else if (minor >= 17) {
-    result.min = 16;
-  } else if (minor >= 12) {
-    result.min = 8;
-  }
-
-  // Detect loaders from combined libraries (version + parent)
-  const allLibs = [
-    ...(versionJson?.libraries || []),
-    ...(parentJson?.libraries || []),
-  ];
-
-  const hasOptiFine = (versionJson?.id || '').includes('OptiFine') ||
-                      (parentJson?.id || '').includes('OptiFine');
-  const hasFabric = !!(versionJson?.inheritsFrom) || versionId.includes('fabric');
-  const hasLiteLoader = (versionJson?.id || '').includes('LiteLoader') ||
-                        (parentJson?.id || '').includes('LiteLoader');
+  // PCL-style loader detection from merged string scan
+  const hasFabric = mergedStr.includes('net.fabricmc:fabric-loader') || mergedStr.includes('org.quiltmc:quilt-loader');
+  const hasOptiFine = mergedStr.includes('optifine') || mergedStr.includes('OptiFine');
+  const hasLiteLoader = mergedStr.includes('liteloader');
+  const isNeoForge = mergedStr.includes('net.neoforged');
+  const hasForge = mergedStr.includes('minecraftforge') && !isNeoForge;
 
   let forgeVer = null, neoVer = null;
-  for (const lib of allLibs) {
-    const name = typeof lib === 'string' ? lib : (lib.name || '');
-    if (name.startsWith('net.minecraftforge:forge:') || name.startsWith('net.minecraftforge:fmlloader:')) {
-      const m = name.match(/:(\d+\.\d+(?:\.\d+)*)/);
-      if (m) forgeVer = m[1];
-    }
-    if (name.startsWith('net.neoforged:neoforge:') || name.startsWith('net.neoforged:fmlloader:')) {
-      const m = name.match(/:(\d+\.\d+(?:\.\d+)*(?:-beta)?)/);
-      if (m) neoVer = m[1];
-    }
+
+  if (hasForge) {
+    forgeVer = mergedStr.match(/(?<=forge:\d+\.\d+(?:_pre\d*)?-)\d+\.\d+/)?.[0]
+            || mergedStr.match(/(?<=net\.minecraftforge:minecraftforge:)\d+\.\d+/)?.[0]
+            || mergedStr.match(/(?<=net\.minecraftforge:fmlloader:\d+\.\d+\.\d+-)\d+\.\d+/)?.[0]
+            || 'unknown';
+  }
+  if (isNeoForge) {
+    neoVer = mergedStr.match(/(?<=net\.neoforged:neoforge:)\d+\.\d+(?:\.\d+)*(?:-beta)?/)?.[0]
+          || mergedStr.match(/(?<=neoforge:)\d+\.\d+/)?.[0]
+          || 'unknown';
   }
 
   // Forge-specific constraints
