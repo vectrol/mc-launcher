@@ -230,24 +230,26 @@ function buildClasspath(merged) {
   return cp.join(';');
 }
 
-// Download missing libraries for a version (auto-repair before blocking launch)
-async function repairMissingLibs(childData, missingLibs, onProgress) {
+// Download missing libraries (from merged list, includes inherited)
+async function repairMissingLibs(mergedLibraries, missingLibs, onProgress) {
   const { downloadFile } = require('./mc-api.cjs');
   let repaired = 0, failed = 0;
-  for (const lib of childData.libraries || []) {
-    if (!lib.downloads?.artifact) continue;
-    const path = lib.downloads.artifact.path;
-    if (!missingLibs.some(m => m.includes(path) || path.includes(m))) continue;
-    const dest = path.join(LIBRARIES_DIR, path);
-    if (fs.existsSync(dest)) continue;
-    try {
-      await downloadFile(lib.downloads.artifact.url, dest, (p) => onProgress?.({
-        phase: 'repair',
-        message: `Repairing library: ${path.split('/').pop()}`,
-        percent: Math.round(p.percent * 0.95),
-      }));
-      repaired++;
-    } catch { failed++; }
+  for (const lib of mergedLibraries) {
+    let libPath;
+    if (lib.downloads?.artifact) {
+      libPath = lib.downloads.artifact.path;
+      const url = lib.downloads.artifact.url;
+      const dest = path.join(LIBRARIES_DIR, libPath);
+      if (!fs.existsSync(dest) && missingLibs.some(m => m.includes(libPath || ''))) {
+        try {
+          await downloadFile(url, dest, (p) => onProgress?.({
+            phase: 'repair', message: `Repairing: ${libPath?.split('/').pop()}`,
+            percent: Math.round(p.percent * 0.95),
+          }));
+          repaired++;
+        } catch { failed++; }
+      }
+    }
   }
   return { repaired, failed };
 }
@@ -266,11 +268,11 @@ function launchGame(versionId, mainWindow) {
         buildClasspath(merged); // throws if >50% missing
       } catch (err) {
         if (err.missingLibs?.length > 0) {
-          const { repaired, failed } = await repairMissingLibs(childData, err.missingLibs, (p) => {
+          const { repaired, failed } = await repairMissingLibs(merged.libraries, err.missingLibs, (p) => {
             mainWindow?.webContents.send('mc:gameLog', `[Launcher] ${p.message}\n`);
           });
           if (repaired > 0) {
-            mainWindow?.webContents.send('mc:gameLog', `[Launcher] Repaired ${repaired} missing libraries (${failed} failed)\n`);
+            mainWindow?.webContents.send('mc:gameLog', `[Launcher] Repaired ${repaired} missing libraries${failed > 0 ? ` (${failed} failed)` : ''}\n`);
           }
         }
       }

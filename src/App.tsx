@@ -87,6 +87,18 @@ function LauncherApp() {
     return () => { window.removeEventListener('keydown', handleKey); unsub; unsubLog; };
   }, []);
 
+  // Auto-hide download panel when done (after 5 seconds)
+  useEffect(() => {
+    if (downloadProgress?.phase === 'done') {
+      const timer = setTimeout(() => {
+        setShowDownloadPanel(false);
+        setDownloadProgress(null);
+        refreshInstalled();
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [downloadProgress?.phase]);
+
   useEffect(() => {
     // Check for new Minecraft version on startup
     window.electronAPI.mc.checkNewVersion().then((r) => {

@@ -68,6 +68,8 @@ export default function FriendPanel({ t, installedList }: Props) {
     if (!newName.trim() || !newIp.trim()) return;
     await window.electronAPI.mc.addFriend(newName.trim(), newIp.trim());
     setNewName(''); setNewIp(''); setShowAdd(false);
+    setStatusMsg({ ok: true, text: `${t('friends.friendAdded')}: ${newName}` });
+    setTimeout(() => setStatusMsg(null), 3000);
     refresh();
   }
 

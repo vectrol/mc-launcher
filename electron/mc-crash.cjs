@@ -118,9 +118,17 @@ function validateVersion(versionId) {
   if (!fs.existsSync(jsonPath)) return { valid: false, error: `Version JSON not found: ${jsonPath}` };
   if (!fs.existsSync(jarPath)) return { valid: false, error: `Version JAR not found: ${jarPath}. Download the version first.` };
 
-  // Check for required natives
-  const nativesDir = path.join(versionDir, 'natives');
-  // Not critical but warn
+  // Check inheritance: if version inherits from another, ensure parent exists
+  try {
+    const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+    if (data.inheritsFrom) {
+      const parentDir = path.join(VERSIONS_DIR, data.inheritsFrom);
+      const parentJson = path.join(parentDir, `${data.inheritsFrom}.json`);
+      const parentJar = path.join(parentDir, `${data.inheritsFrom}.jar`);
+      if (!fs.existsSync(parentJson)) return { valid: false, error: `Parent version ${data.inheritsFrom} not found. Please download ${data.inheritsFrom} first.` };
+      if (!fs.existsSync(parentJar)) return { valid: false, error: `Parent version JAR not found. Please re-download ${data.inheritsFrom}.` };
+    }
+  } catch {}
 
   return { valid: true };
 }
