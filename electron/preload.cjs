@@ -110,6 +110,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     searchCurseForge: (query, gameVersion) => ipcRenderer.invoke('mc:searchCurseForge', query, gameVersion),
     getCurseForgeFiles: (modId, gameVersion) => ipcRenderer.invoke('mc:getCurseForgeFiles', modId, gameVersion),
     checkForUpdates: () => ipcRenderer.invoke('mc:checkForUpdates'),
+    getLauncherVersion: () => ipcRenderer.invoke('mc:getLauncherVersion'),
     downloadUpdate: () => ipcRenderer.invoke('mc:downloadUpdate'),
     openUpdateFolder: () => ipcRenderer.invoke('mc:openUpdateFolder'),
     onUpdateProgress: (callback) => {

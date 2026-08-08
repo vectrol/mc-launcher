@@ -316,6 +316,7 @@ interface ElectronAPI {
     searchCurseForge: (query: string, gameVersion?: string) => Promise<any[]>;
     getCurseForgeFiles: (modId: string, gameVersion?: string) => Promise<any[]>;
     checkForUpdates: () => Promise<{ hasUpdate: boolean; current: string; latest?: string; notes?: string; url?: string; assets?: { name: string; url: string; size: number }[] }>;
+    getLauncherVersion: () => Promise<string>;
     downloadUpdate: () => Promise<{ success: boolean }>;
     openUpdateFolder: () => Promise<void>;
     onUpdateProgress: (cb: (data: { percent: number; downloaded: number; total: number }) => void) => void;

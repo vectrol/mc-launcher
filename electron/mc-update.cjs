@@ -33,8 +33,8 @@ const UPDATE_REPO = process.env.MC_UPDATE_REPO || 'vectrol/mc-launcher';
 function getLocalVersion() {
   try {
     const pkg = require('../package.json');
-    return pkg.version || '2.0.0';
-  } catch { return '2.0.0'; }
+    return pkg.version || '2.5.0';
+  } catch { return '2.5.0'; }
 }
 
 function githubGet(url) {
@@ -168,4 +168,4 @@ function importMinecraftFolder(folderPath) {
   return { success: true, name: `${baseName}-import`, mcVersion };
 }
 
-module.exports = { logError, getErrorLog, clearErrorLog, checkForUpdates, downloadUpdate, importMinecraftFolder };
+module.exports = { logError, getErrorLog, clearErrorLog, checkForUpdates, downloadUpdate, getLocalVersion, importMinecraftFolder };

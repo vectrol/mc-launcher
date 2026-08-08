@@ -37,6 +37,12 @@ export default function SettingsPanel({ t }: Props) {
   const [downloadingUpdate, setDownloadingUpdate] = useState(false);
   const [updateProgress, setUpdateProgress] = useState(0);
   const [updateDownloaded, setUpdateDownloaded] = useState(false);
+  const [launcherVersion, setLauncherVersion] = useState('');
+
+  useEffect(() => {
+    loadSettings();
+    window.electronAPI.mc.getLauncherVersion().then(setLauncherVersion).catch(() => {});
+  }, []);
 
   async function handleDownloadUpdate() {
     setDownloadingUpdate(true); setUpdateProgress(0); setUpdateDownloaded(false);
@@ -71,12 +77,14 @@ export default function SettingsPanel({ t }: Props) {
     catch {}
   }
 
-  useEffect(() => { loadSettings(); }, []);
+  useEffect(() => {
+    loadSettings();
+    window.electronAPI.mc.getLauncherVersion().then(setLauncherVersion).catch(() => {});
+  }, []);
 
   async function loadSettings() {
     try { setSettings(await window.electronAPI.mc.getSettings()); } catch {} finally { setLoading(false); }
   }
-
   async function handleSave(updates: Partial<AppSettings>) {
     if (!settings) return;
     setSaved(false);
@@ -427,7 +435,7 @@ export default function SettingsPanel({ t }: Props) {
               <div>
                 <h3 className="flex items-center gap-2 text-sm font-semibold mb-3 text-mc-accent-hover"><Info size={16} /> {t('help.about')}</h3>
                 <div className="p-4 rounded-xl bg-mc-card/30 border border-mc-border/30 space-y-2 text-xs">
-                  <div className="flex items-center justify-between"><span className="text-mc-muted">{t('help.version')}</span><span className="font-mono text-mc-text">MC Launcher v2.0</span></div>
+                  <div className="flex items-center justify-between"><span className="text-mc-muted">{t('help.version')}</span><span className="font-mono text-mc-text">MC Launcher v{launcherVersion || '...'}</span></div>
                   <div className="flex items-center justify-between"><span className="text-mc-muted">{t('help.dataDir')}</span><span className="font-mono text-mc-muted text-[10px] truncate max-w-[200px]">%APPDATA%/mc-launcher</span></div>
                   <div className="flex gap-2 pt-2">
                     <button onClick={() => window.electronAPI.mc.openFolder()}

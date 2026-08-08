@@ -358,6 +358,10 @@ ipcMain.handle('mc:getCurseForgeFiles', async (_e, modId, gameVersion) => getCur
 
 // Update & logs & import
 ipcMain.handle('mc:checkForUpdates', async () => checkForUpdates());
+ipcMain.handle('mc:getLauncherVersion', async () => {
+  const { getLocalVersion } = require('./mc-update.cjs');
+  return getLocalVersion();
+});
 ipcMain.handle('mc:downloadUpdate', async () => {
   await downloadUpdate((p) => {
     mainWindow?.webContents.send('mc:updateProgress', p);
