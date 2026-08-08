@@ -47,6 +47,17 @@ function LauncherApp() {
   const [error, setError] = useState<string | null>(null);
   const [showDownloadPanel, setShowDownloadPanel] = useState(false);
   const [activePage, setActivePage] = useState<Page>('home');
+  const [pageLock, setPageLock] = useState(false);
+
+  // Gated navigation: prevent rapid switching that causes page overlap
+  function navigateTo(page: Page) {
+    if (pageLock && page !== activePage) return;
+    if (page !== activePage) {
+      setPageLock(true);
+      setActivePage(page);
+      setTimeout(() => setPageLock(false), 250);
+    }
+  }
   const [lang, setLang] = useState<Lang>('zh-CN');
   const [splashVisible, setSplashVisible] = useState(false);
   const [splashVersion, setSplashVersion] = useState('');
@@ -73,11 +84,11 @@ function LauncherApp() {
     // Keyboard shortcuts
     const handleKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
-        if (e.key === '1') { setActivePage('home'); e.preventDefault(); }
-        if (e.key === '2') { setActivePage('versions'); e.preventDefault(); }
-        if (e.key === '3') { setActivePage('library'); e.preventDefault(); }
-        if (e.key === '4') { setActivePage('modBrowser'); e.preventDefault(); }
-        if (e.key === '5') { setActivePage('servers'); e.preventDefault(); }
+        if (e.key === '1') { navigateTo('home'); e.preventDefault(); }
+        if (e.key === '2') { navigateTo('versions'); e.preventDefault(); }
+        if (e.key === '3') { navigateTo('library'); e.preventDefault(); }
+        if (e.key === '4') { navigateTo('modBrowser'); e.preventDefault(); }
+        if (e.key === '5') { navigateTo('servers'); e.preventDefault(); }
         if (e.key === 'r') { refreshInstalled(); e.preventDefault(); }
         if (e.key === 'b') { setSidebarOpen(p => !p); e.preventDefault(); }
       }
@@ -213,7 +224,7 @@ function LauncherApp() {
       setError(msg);
       // Show launch failure prominently + hint to re-download if incomplete
       if (msg.includes('incomplete') || msg.includes('Classpath')) {
-        toast(`${msg} — ${t('notify.redownload')}`, 'error');
+        toast(`${msg} 閳?${t('notify.redownload')}`, 'error');
       } else {
         toast(msg, 'error');
       }
@@ -246,7 +257,7 @@ function LauncherApp() {
         >
           {/* Logo */}
           <motion.div whileHover={{ scale: 1.1 }} className="w-10 h-10 rounded-xl bg-gradient-to-br from-mc-accent to-purple-500 flex items-center justify-center mb-3 shrink-0 cursor-pointer shadow-md shadow-mc-accent/20"
-            onClick={() => setActivePage('home')}>
+            onClick={() => navigateTo('home')}>
             <span className="text-white font-bold text-[11px]">MC</span>
           </motion.div>
 
@@ -256,7 +267,7 @@ function LauncherApp() {
               key={item.id}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              onClick={() => { setActivePage(item.id); }}
+              onClick={() => { navigateTo(item.id); }}
               className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 relative ${
                 activePage === item.id
                   ? 'bg-mc-accent/15 text-mc-accent-hover shadow-sm shadow-mc-accent/10'
@@ -280,7 +291,7 @@ function LauncherApp() {
           {/* Installed version count badge */}
           <div
             className="w-11 h-11 rounded-xl flex items-center justify-center text-mc-muted hover:text-mc-text cursor-pointer relative"
-            onClick={() => setActivePage('library')}
+            onClick={() => navigateTo('library')}
             title={t('library.title')}
           >
             <Library size={16} />
@@ -346,15 +357,15 @@ function LauncherApp() {
                 className="w-6 h-6 rounded-full border-2 border-mc-accent border-t-transparent" />
             </div>
           }>
-          <AnimatePresence initial={false}>
+          <AnimatePresence mode="wait">
             {activePage === 'home' ? (
-              <motion.div key="home" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
+              <motion.div key="home" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <HomePage installedList={installedList} onLaunch={handleLaunch} launching={launching} manifest={manifest} t={t} />
               </motion.div>
             ) : activePage === 'versions' ? (
               <motion.div key="versions" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
+                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <VersionBrowser
                   manifest={manifest} loading={loading} downloading={downloading} launching={launching}
                   installedVersions={installedVersions} downloadProgress={downloadProgress}
@@ -362,32 +373,32 @@ function LauncherApp() {
               </motion.div>
             ) : activePage === 'library' ? (
               <motion.div key="library" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
+                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <LibraryPage onLaunch={handleLaunch} onDeleted={refreshInstalled} installingId={downloading} t={t} />
               </motion.div>
             ) : activePage === 'modBrowser' ? (
               <motion.div key="modBrowser" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
+                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <ModBrowser installedList={installedList} t={t} />
               </motion.div>
             ) : activePage === 'servers' ? (
               <motion.div key="servers" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
+                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <ServerList t={t} />
               </motion.div>
             ) : activePage === 'friends' ? (
               <motion.div key="friends" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
+                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <FriendPanel t={t} installedList={installedList} />
               </motion.div>
             ) : activePage === 'screenshots' ? (
               <motion.div key="screenshots" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
+                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <ScreenshotsPanel t={t} />
               </motion.div>
             ) : (
               <motion.div key="settings" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
+                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <SettingsPanel t={t} />
               </motion.div>
             )}
