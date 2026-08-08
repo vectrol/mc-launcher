@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Globe, Library, Settings, Menu, X, RefreshCw, Play, ChevronRight, ShoppingBag, Globe2, Users } from 'lucide-react';
@@ -47,16 +47,14 @@ function LauncherApp() {
   const [error, setError] = useState<string | null>(null);
   const [showDownloadPanel, setShowDownloadPanel] = useState(false);
   const [activePage, setActivePage] = useState<Page>('home');
-  const [pageLock, setPageLock] = useState(false);
 
-  // Gated navigation: prevent rapid switching that causes page overlap
+  // Ref-based navigation guard: prevents double-switching during animation
+  const navigatingRef = useRef(false);
   function navigateTo(page: Page) {
-    if (pageLock && page !== activePage) return;
-    if (page !== activePage) {
-      setPageLock(true);
-      setActivePage(page);
-      setTimeout(() => setPageLock(false), 250);
-    }
+    if (navigatingRef.current || page === activePage) return;
+    navigatingRef.current = true;
+    setActivePage(page);
+    setTimeout(() => { navigatingRef.current = false; }, 300);
   }
   const [lang, setLang] = useState<Lang>('zh-CN');
   const [splashVisible, setSplashVisible] = useState(false);
@@ -363,7 +361,7 @@ function LauncherApp() {
                 <HomePage installedList={installedList} onLaunch={handleLaunch} launching={launching} manifest={manifest} t={t} />
               </motion.div>
             ) : activePage === 'versions' ? (
-              <motion.div key="versions" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
+              <motion.div key="versions" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
                 transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <VersionBrowser
                   manifest={manifest} loading={loading} downloading={downloading} launching={launching}
@@ -371,17 +369,17 @@ function LauncherApp() {
                   onInstall={handleInstall} onLaunch={handleLaunch} t={t} />
               </motion.div>
             ) : activePage === 'library' ? (
-              <motion.div key="library" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
+              <motion.div key="library" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
                 transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <LibraryPage onLaunch={handleLaunch} onDeleted={refreshInstalled} installingId={downloading} t={t} />
               </motion.div>
             ) : activePage === 'modBrowser' ? (
-              <motion.div key="modBrowser" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
+              <motion.div key="modBrowser" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
                 transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <ModBrowser installedList={installedList} t={t} />
               </motion.div>
             ) : activePage === 'servers' ? (
-              <motion.div key="servers" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
+              <motion.div key="servers" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
                 transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }} className="flex-1 flex flex-col overflow-hidden">
                 <ServerList t={t} />
               </motion.div>
