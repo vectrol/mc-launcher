@@ -11,7 +11,7 @@ function getLauncherVersion() {
   try { return require('../package.json').version || '3.1.0'; } catch { return '3.1.0'; }
 }
 
-function findJava(versionId) {
+function findJava(versionId, mainWindow) {
   // Load settings / instance overrides
   const settings = loadSettings();
   let explicitPath = null;
@@ -37,7 +37,7 @@ function findJava(versionId) {
     const { getInstanceSettings } = require('./mc-instances.cjs');
     const inst = getInstanceSettings(versionId);
     const src = inst.javaPath ? 'Instance' : 'Global';
-    logSend(null, `[Java] ${src} Java ${actualMajor} incompatible with ${versionId} (needs ${constraint.min}-${constraint.max === Infinity ? '+' : constraint.max}), auto-detecting...`);
+    logSend(mainWindow, `[Java] ${src} Java ${actualMajor} incompatible with ${versionId} (needs ${constraint.min}-${constraint.max === Infinity ? '+' : constraint.max}), auto-detecting...`);
   }
 
   // Auto-detect best JRE
@@ -53,7 +53,7 @@ function findJava(versionId) {
       .sort((a, b) => a.major - b.major)[0];
     if (best && best.exists) return best.path;
     // Last resort: highest JRE even if out of range
-    logSend(null, `[Java] No JRE found within ${constraint.min}-${constraint.max === Infinity ? '+' : constraint.max}, using highest available`);
+    logSend(mainWindow, `[Java] No JRE found within ${constraint.min}-${constraint.max === Infinity ? '+' : constraint.max}, using highest available`);
     return jres[jres.length - 1].path;
   }
 
@@ -82,7 +82,7 @@ function getJavaMajorSync(javaExe) {
 }
 
 function logSend(mainWindow, msg) {
-  if (mainWindow) mainWindow.webContents.send('mc:gameLog', msg + '\n');
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('mc:gameLog', msg + '\n');
 }
 
 // Check natives dir exists and has DLLs; if not, re-extract
@@ -324,7 +324,7 @@ function launchGame(versionId, mainWindow) {
       const settings = loadSettings();
       const { getInstanceSettings } = require('./mc-instances.cjs');
       const instSettings = getInstanceSettings(versionId);
-      const javaPath = findJava(versionId);
+      const javaPath = findJava(versionId, mainWindow);
       let account = null;
       try {
         account = await Promise.race([
